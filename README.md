@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.114  
+**Versão atual:** 1.0.115  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -28,6 +28,12 @@ O Manager usa o **nome da pasta** como identidade padrão do projeto. O campo `n
 Ao executar frontend + backend juntos, o Manager usa um painel único com quatro etapas (Backend, Frontend, Inicialização e Disponibilidade). Status, avisos, PID, logs e detecção de servidor permanecem dentro da moldura visual durante a execução. Quando uma etapa falha, o painel é encerrado corretamente e o Manager oferece **Coletar logs do teste**, gerando em Downloads um único TXT sanitizado com logs de backend, frontend, Manager e metadados de processo.
 
 
+
+### Instalação de desktop com progresso e permissões de APK (1.0.115)
+
+- **Linux > Interface gráfica (X11) > Instalar desktop:** antes de entrar no Ubuntu/PRoot, a tela mostra o comando em andamento e exibe um aviso a cada 20 segundos durante a espera. Isso **não garante que a instalação esteja progredindo** nem identifica automaticamente a causa de um bloqueio; fornece visibilidade e mantém a opção de Ctrl+C. O código de retorno do PRoot/APT continua no log Linux.
+- **Linux > Interface gráfica (X11) > Status e problemas > Permissões para instalar APKs** (também em **Linux > Ajuda e diagnóstico**): checar `allow-external-apps`, ativar com confirmação e backup protegido, abrir a tela Android de fontes desconhecidas e restaurar o `termux.properties` anterior. A autorização do Android continua manual. **Não é necessária para simplesmente usar um X11 já instalado.**
+- `allow-external-apps=true` amplia a superfície de integração externa do Termux (inclusive `RUN_COMMAND` em aplicativos que receberem permissão). Só ative se desejar essa integração e confiar nos aplicativos aos quais concedeu acesso.
 
 ### Verificação do Termux:X11 e teste de abertura no Android (1.0.114)
 
@@ -451,10 +457,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.114
-Tag: v1.0.114
-Release: Manager 1.0.114
-Pacote único: TermuxManager-v1.0.114.zip
+Versão: 1.0.115
+Tag: v1.0.115
+Release: Manager 1.0.115
+Pacote único: TermuxManager-v1.0.115.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

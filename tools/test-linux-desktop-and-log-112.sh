@@ -36,7 +36,7 @@ for desktop in xfce lxqt lxde mate openbox i3 kde gnome; do
   guest="$(linux_desktop_guest_script "$desktop")"
   /bin/sh -n -c "$guest"
   /bin/sh -c "$guest" > "$TMP_ROOT/guest.log" 2>&1
-  grep -q '^update$' "$MOCK_APT_CALLS"
+  grep -q '^update ' "$MOCK_APT_CALLS"
   grep -q '^install -y ' "$MOCK_APT_CALLS"
   grep -q "Instalando pacotes do desktop $desktop" "$TMP_ROOT/guest.log"
 done

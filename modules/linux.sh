@@ -16,6 +16,7 @@ for _linux_submodule in \
     linux_distros.sh \
     linux_backup.sh \
     linux_x11.sh \
+    linux_permissions.sh \
     linux_ui.sh; do
     # shellcheck source=/dev/null
     source "$LINUX_MODULE_DIR/$_linux_submodule"

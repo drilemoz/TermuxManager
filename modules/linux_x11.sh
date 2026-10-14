@@ -489,8 +489,10 @@ DESKTOP_ID='$desktop'
 LAUNCHER='$launcher'
 if command -v apt-get >/dev/null 2>&1; then
   export DEBIAN_FRONTEND=noninteractive
+  export DEBCONF_NONINTERACTIVE_SEEN=true
+  printf "[Manager] Ubuntu/PRoot iniciou; verificando APT...\n"
   printf "[Manager] Atualizando índices APT...\n"
-  apt-get update
+  apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=45 -o Acquire::https::Timeout=45
   printf "[Manager] Instalando pacotes do desktop %s...\n" "\$DESKTOP_ID"
   case "\$DESKTOP_ID" in
     xfce) apt-get install -y xfce4 xfce4-terminal dbus-x11 ;;
@@ -560,6 +562,37 @@ fi
 EOF
 }
 
+# O PRoot pode demorar antes de produzir sua primeira linha de saída.
+# O aviso periódico é apenas informativo; não interrompe downloads ou dpkg.
+linux_executar_desktop_com_progresso() {
+    local alias="${1:-}" guest_script="${2:-}" rc=0 heartbeat_pid intervalo segundos=0
+    local trap_int trap_term shell_pid
+    [ -n "$alias" ] && [ -n "$guest_script" ] || return 2
+    intervalo="${LINUX_DESKTOP_HEARTBEAT_SECONDS:-20}"
+    [[ "$intervalo" =~ ^[0-9]+$ ]] && [ "$intervalo" -ge 1 ] || intervalo=20
+    printf '[Manager] Iniciando PRoot (%s); aguardando resposta do Linux...\n' "$alias" | tee -a "$LINUX_LOG"
+    printf '[Manager] Se ficar sem saída, serão exibidos avisos a cada %ss. Ctrl+C cancela a tentativa.\n' "$intervalo" | tee -a "$LINUX_LOG"
+    shell_pid="$BASHPID"
+    (
+        while sleep "$intervalo"; do
+            kill -0 "$shell_pid" 2>/dev/null || exit 0
+            segundos=$((segundos + intervalo))
+            printf '[Manager] Aguardando Linux/APT há %ss. Pode estar inicializando ou baixando pacotes; Ctrl+C para interromper.\n' "$segundos" | tee -a "$LINUX_LOG"
+        done
+    ) &
+    heartbeat_pid=$!
+    trap_int="$(trap -p INT)"
+    trap_term="$(trap -p TERM)"
+    trap 'kill "$heartbeat_pid" 2>/dev/null || true' INT TERM
+    proot-distro login "$alias" -- /bin/sh -lc "$guest_script" 2>&1 | tee -a "$LINUX_LOG" || rc=${PIPESTATUS[0]}
+    kill "$heartbeat_pid" 2>/dev/null || true
+    wait "$heartbeat_pid" 2>/dev/null || true
+    if [ -n "$trap_int" ]; then eval "$trap_int"; else trap - INT; fi
+    if [ -n "$trap_term" ]; then eval "$trap_term"; else trap - TERM; fi
+    linux_log "desktop proot encerrado: alias=$alias código=$rc"
+    return "$rc"
+}
+
 linux_instalar_desktop_na_distro() {
     local alias="${1:-}" desktop="${2:-}" gerenciador guest_script nome launcher aviso
     [ -n "$alias" ] && [ -n "$desktop" ] || return 1
@@ -617,7 +650,8 @@ linux_instalar_desktop_na_distro() {
     # deve esconder o erro do gerenciador de pacotes ou do proot-distro.
     local rc=0
     linux_log "iniciando instalação desktop=$desktop alias=$alias gerenciador=$gerenciador"
-    proot-distro login "$alias" -- /bin/sh -lc "$guest_script" 2>&1 | tee -a "$LINUX_LOG" || rc=${PIPESTATUS[0]}
+    printf '[Manager] Preparando execução do desktop %s em %s...\n' "$nome" "$alias"
+    linux_executar_desktop_com_progresso "$alias" "$guest_script" || rc=$?
     if [ "$rc" -eq 0 ]; then
         if linux_desktop_instalado "$alias" "$desktop"; then
             linux_log "$nome instalado e validado em $alias via $gerenciador"
@@ -857,13 +891,14 @@ linux_menu_suporte_x11() {
     local escolha
     while true; do
         menu_unificado "🩺 SUPORTE TERMUX:X11" "Solução de problemas e documentação" \
-            "[0] Voltar  •  [1–6] Selecionar" \
+            "[0] Voltar  •  [1–7] Selecionar" \
             "1|📋|Status do X11|Aplicativo e companion" \
             "2|⏹️|Parar sessão gráfica|Encerrar o servidor X11" \
             "3|🩺|Diagnóstico X11|Tela preta, cores e lentidão" \
             "4|🌐|Repositório oficial|GitHub termux/termux-x11" \
             "5|📥|Copiar log para Downloads|Salvar o log Linux em .log" \
-            "6|▶️|Testar abertura do X11|Verificar atividade do aplicativo Android"
+            "6|▶️|Testar abertura do X11|Verificar atividade do aplicativo Android" \
+            "7|🔐|Permissões para instalar APKs|Integração Termux e ajustes do Android"
         ler_opcao
         escolha="$RESPOSTA_MENU"
         case "$escolha" in
@@ -880,6 +915,7 @@ linux_menu_suporte_x11() {
                 ;;
             5) linux_exportar_log_downloads || true; pause ;;
             6) linux_x11_testar_abertura_menu ;;
+            7) linux_menu_permissoes_apk ;;
             0) return 0 ;;
             *) feedback_curto "Opção inválida." ;;
         esac

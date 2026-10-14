@@ -1,3 +1,11 @@
+## v1.0.115 (2026-10-14)
+
+- **Linux/PRoot:** instalação de ambientes gráficos mostra a chamada ao PRoot imediatamente e emite avisos periódicos enquanto aguarda a saída do Linux/APT. Mantém retorno real do comando e permite cancelar pelo terminal.
+- **Ubuntu/APT:** sinaliza entrada no PRoot, usa tentativas limitadas e timeout de rede nos índices APT, sem impor limite global à instalação dos pacotes.
+- **Android/Termux:** novo menu Permissões de APK com status, ativação explícita e reversível de `allow-external-apps`, acesso às configurações de fontes desconhecidas e instruções de instalação segura.
+- **Segurança:** `allow-external-apps` permanece desativado por padrão; configurações existentes são preservadas com backup privado antes de qualquer alteração, sem conceder permissões Android silenciosamente.
+- Testes de regressão para PRoot sem saída, falha de retorno, configurações e fluxo de permissões.
+
 # Changelog
 
 ## [1.0.114] - 2026-10-14
