@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.111] - 2026-10-14
+
+### Menus Linux simplificados
+- Menu Linux reorganizado por tarefa: **Meus Linux**, **Instalar Linux**, **Interface gráfica (X11)**, **Backup e restauração** e **Ajuda e diagnóstico**. A tela principal passou de sete para cinco opções.
+- Cada distribuição mostra apenas operações de uso diário (terminal, desktop, atualização) e um submenu de manutenção, que contém backup, diagnóstico, informações, sessões, reparação e remoção.
+- Fluxo Termux:X11 reduzido a abrir desktop, instalar desktop, preparar X11 e suporte. A preparação separa claramente o **companion no Termux** do **APK no Android** e exibe seu estado.
+- Backups de distribuições centralizados, sem misturar com backups de projetos, com orientação de formato e pré-requisitos.
+- Status detalhado, verificação de compatibilidade e reparos movidos para **Ajuda e diagnóstico**, consultados sob demanda para evitar trabalhos extras ao abrir o menu Linux.
+- Todos os comandos anteriores permanecem disponíveis e as funções operacionais foram preservadas. Testes adicionais cobrem menus, navegação e encaminhamento de ações. Validação visual no Android ainda necessária.
+
+
 ## [1.0.110] - 2026-10-14
 
 ### Uso diário no celular

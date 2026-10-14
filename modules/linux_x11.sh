@@ -498,13 +498,13 @@ linux_iniciar_desktop() {
     cabecalho_tela "🖥️ Iniciar desktop Linux" "Termux:X11 + ambiente gráfico"
     if ! linux_x11_companion_instalado; then
         warn "O companion termux-x11 não está instalado."
-        caixa_simples "Como corrigir" "Abra Termux:X11 > Instalar componentes do X11."
+        caixa_simples "Como corrigir" "Abra Interface gráfica (X11) > Preparar Termux:X11 > Componentes do Termux."
         pause
         return 1
     fi
     if ! linux_x11_apk_instalado; then
         warn "O aplicativo Android Termux:X11 não foi detectado."
-        caixa_simples "Como corrigir" "Baixe o APK oficial pelo menu Termux:X11 e conclua a instalação no Android."
+        caixa_simples "Como corrigir" "Abra Interface gráfica (X11) > Preparar Termux:X11 > Aplicativo Android."
         pause
         return 1
     fi
@@ -606,39 +606,77 @@ linux_diagnostico_x11() {
     pause
 }
 
-menu_termux_x11() {
+# Preparação inicial: o APK e o companion são componentes distintos.
+linux_menu_preparar_x11() {
+    local companion app escolha
     while true; do
-        local companion="ausente" app="ausente"
-        linux_x11_companion_instalado && companion="instalado"
-        linux_x11_apk_instalado && app="instalado"
-        menu_unificado "🖥️ TERMUX:X11" "Interface gráfica para Linux" \
-            "[0] Voltar  •  [1–8] Selecionar" \
-            "1|📋|Status|Companion: $companion • App: $app" \
-            "2|📦|Instalar componentes|x11-repo + termux-x11-nightly" \
-            "3|📲|Baixar aplicativo Android|APK oficial nightly" \
-            "4|🪟|Ambientes gráficos|XFCE, LXQt, LXDE, MATE, Openbox, i3, KDE e GNOME" \
-            "5|▶️|Iniciar desktop|Escolher um ambiente instalado e abrir no X11" \
-            "6|⏹️|Parar sessão gráfica|Encerrar servidor X11" \
-            "7|🩺|Diagnóstico X11|Tela preta, cores e lentidão" \
-            "8|🌐|Repositório oficial|GitHub termux/termux-x11"
+        companion="pendente"; app="pendente"
+        linux_x11_companion_instalado && companion="pronto"
+        linux_x11_apk_instalado && app="pronto"
+        menu_unificado "⚙️ PREPARAR TERMUX:X11" "Duas instalações necessárias (uma única vez)" \
+            "[0] Voltar  •  [1–3] Selecionar" \
+            "1|📦|1. Componentes do Termux|Companion: $companion" \
+            "2|📲|2. Aplicativo Android (APK)|Aplicativo: $app" \
+            "3|📋|Verificar instalação|Conferir os dois componentes"
         ler_opcao
-        case "$RESPOSTA_MENU" in
+        escolha="$RESPOSTA_MENU"
+        case "$escolha" in
+            1) linux_instalar_x11_companion ;;
+            2) linux_baixar_x11_apk ;;
+            3) linux_status_x11 ;;
+            0) return 0 ;;
+            *) feedback_curto "Opção inválida." ;;
+        esac
+    done
+}
+
+linux_menu_suporte_x11() {
+    local escolha
+    while true; do
+        menu_unificado "🩺 SUPORTE TERMUX:X11" "Solução de problemas e documentação" \
+            "[0] Voltar  •  [1–4] Selecionar" \
+            "1|📋|Status do X11|Aplicativo e companion" \
+            "2|⏹️|Parar sessão gráfica|Encerrar o servidor X11" \
+            "3|🩺|Diagnóstico X11|Tela preta, cores e lentidão" \
+            "4|🌐|Repositório oficial|GitHub termux/termux-x11"
+        ler_opcao
+        escolha="$RESPOSTA_MENU"
+        case "$escolha" in
             1) linux_status_x11 ;;
-            2) linux_instalar_x11_companion ;;
-            3) linux_baixar_x11_apk ;;
-            4) linux_instalar_ambiente_grafico ;;
-            5) linux_iniciar_desktop ;;
-            6) linux_parar_x11 ;;
-            7) linux_diagnostico_x11 ;;
-            8)
+            2) linux_parar_x11 ;;
+            3) linux_diagnostico_x11 ;;
+            4)
                 if command -v termux-open-url >/dev/null 2>&1; then
                     termux-open-url "https://github.com/termux/termux-x11" || true
                 else
                     caixa_simples "Repositório oficial" "https://github.com/termux/termux-x11"
                     pause
-                fi ;;
-            0) return ;;
-            *) warn "Opção inválida."; sleep 1 ;;
+                fi
+                ;;
+            0) return 0 ;;
+            *) feedback_curto "Opção inválida." ;;
+        esac
+    done
+}
+
+menu_termux_x11() {
+    local escolha
+    while true; do
+        menu_unificado "🖥️ DESKTOP LINUX (X11)" "Interface gráfica no Android, sem root" \
+            "[0] Voltar  •  [1–4] Selecionar" \
+            "1|⚙️|Preparar Termux:X11|Primeiro uso: companion e APK Android" \
+            "2|🪟|Instalar desktop|Depois: escolher XFCE, LXQt e outros" \
+            "3|▶️|Abrir desktop|Iniciar um ambiente já instalado" \
+            "4|🩺|Status e problemas|Diagnóstico, encerrar e ajuda"
+        ler_opcao
+        escolha="$RESPOSTA_MENU"
+        case "$escolha" in
+            1) linux_menu_preparar_x11 ;;
+            2) linux_instalar_ambiente_grafico ;;
+            3) linux_iniciar_desktop ;;
+            4) linux_menu_suporte_x11 ;;
+            0) return 0 ;;
+            *) feedback_curto "Opção inválida." ;;
         esac
     done
 }

@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.110  
+**Versão atual:** 1.0.111  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -28,6 +28,12 @@ O Manager usa o **nome da pasta** como identidade padrão do projeto. O campo `n
 Ao executar frontend + backend juntos, o Manager usa um painel único com quatro etapas (Backend, Frontend, Inicialização e Disponibilidade). Status, avisos, PID, logs e detecção de servidor permanecem dentro da moldura visual durante a execução. Quando uma etapa falha, o painel é encerrado corretamente e o Manager oferece **Coletar logs do teste**, gerando em Downloads um único TXT sanitizado com logs de backend, frontend, Manager e metadados de processo.
 
 
+
+### Linux com navegação por tarefas (1.0.111)
+
+Em **Linux no celular**, agora são cinco opções: **Meus Linux** (abrir terminal, desktop ou atualizar sistema), **Instalar Linux**, **Interface gráfica (X11)**, **Backup e restauração** e **Ajuda e diagnóstico**. Os recursos de manutenção de uma distro (backup, informações, diagnósticos, sessões, reparação e remoção) ficam em **Meus Linux > [distribuição] > Manutenção e detalhes**.
+
+O menu X11 orienta a preparação em duas etapas independentes: **componentes no Termux** (`x11-repo` e `termux-x11-nightly`) e **APK Android**, necessários para o desktop gráfico; depois é possível instalar o desktop na distribuição e abri-lo. O APK não é instalado silenciosamente. Há submenus para suporte, status e encerramento. O terminal da distro funciona sem X11. As verificações detalhadas de hardware e estado continuam sob demanda em Ajuda e diagnóstico.
 
 ### Comandos favoritos, recursos e modo econômico (1.0.110)
 
@@ -427,10 +433,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.110
-Tag: v1.0.110
-Release: Manager 1.0.110
-Pacote único: TermuxManager-v1.0.110.zip
+Versão: 1.0.111
+Tag: v1.0.111
+Release: Manager 1.0.111
+Pacote único: TermuxManager-v1.0.111.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
