@@ -62,6 +62,45 @@ resolver_destino_backup_projetos() {
     return 0
 }
 
+# Backups em Downloads são públicos para outros apps com acesso autorizado.
+# NUNCA incluir credenciais conhecidas em um backup público sem criptografia.
+arquivo_backup_sensivel() {
+    local nome="${1##*/}"
+    case "$nome" in
+        .env|.env.*|*.pem|*.key|*.p12|*.pfx|*.jks|*.keystore|\
+        id_rsa|id_dsa|id_ecdsa|id_ed25519|*.asc|\
+        .netrc|.npmrc|.pypirc|.git-credentials|\
+        credentials.json|secrets.json|google-services.json|service-account*.json)
+            return 0 ;;
+    esac
+    return 1
+}
+
+projeto_contem_arquivos_sensiveis() {
+    local raiz="$1" arquivo
+    [ -d "$raiz" ] || return 1
+    while IFS= read -r -d '' arquivo; do
+        if arquivo_backup_sensivel "$arquivo"; then
+            return 0
+        fi
+    done < <(find "$raiz" -type f -print0 2>/dev/null)
+    return 1
+}
+
+# Se a finalidade do backup for EXCLUIR o original, nunca produzir um backup
+# incompleto silenciosamente. O usuário pode optar por não excluir ou cuidar
+# das credenciais separadamente antes de executar a operação destrutiva.
+backup_pre_exclusao_permitido() {
+    local origem="$1"
+    if projeto_contem_arquivos_sensiveis "$origem"; then
+        warn "Backup público não inclui .env, chaves e outros arquivos sensíveis."
+        error "Exclusão bloqueada: o backup não permitiria uma restauração completa."
+        info "Guarde essas credenciais separadamente em local seguro antes de excluir."
+        return 1
+    fi
+    return 0
+}
+
 # Cria um TAR.GZ enxuto: dependências baixáveis, repositório Git, caches,
 # resultados de build e temporários não entram no pacote. O código-fonte,
 # manifests/locks, configurações, assets e demais arquivos do projeto ficam.
@@ -91,6 +130,13 @@ compactar_backup_projeto() {
         --exclude='.mypy_cache' --exclude='*/.mypy_cache' \
         --exclude='tmp' --exclude='*/tmp' \
         --exclude='temp' --exclude='*/temp' \
+        --exclude='.env' --exclude='.env.*' \
+        --exclude='*.pem' --exclude='*.key' \
+        --exclude='*.p12' --exclude='*.pfx' --exclude='*.jks' --exclude='*.keystore' \
+        --exclude='id_rsa' --exclude='id_dsa' --exclude='id_ecdsa' --exclude='id_ed25519' \
+        --exclude='*.asc' --exclude='.netrc' --exclude='.npmrc' --exclude='.pypirc' \
+        --exclude='.git-credentials' --exclude='credentials.json' --exclude='secrets.json' \
+        --exclude='google-services.json' --exclude='service-account*.json' \
         -C "$(dirname "$origem")" "$nome" 2>>"$LOG_FILE"
 }
 
@@ -100,6 +146,11 @@ compactar_backup_projeto() {
 gerar_backup_publico_projeto() {
     local origem="$1" rotulo="${2:-$(basename "$1")}" carimbo arquivo tmp_dir temporario destino hash_tmp hash_dest
     [ -d "$origem" ] || { error "Pasta não encontrada: $(caminho_curto "$origem")"; return 1; }
+    BACKUP_PROJETO_COMPLETO=true
+    if projeto_contem_arquivos_sensiveis "$origem"; then
+        BACKUP_PROJETO_COMPLETO=false
+        warn "Arquivos com possíveis segredos serão excluídos do backup público."
+    fi
     resolver_destino_backup_projetos || return 1
 
     carimbo="$(date '+%Y-%m-%d_%H-%M-%S')"
@@ -148,7 +199,10 @@ criar_backup_projeto() {
         ok "Backup criado e verificado."
         info "Destino: $BACKUP_PROJETO_RESULTADO"
         info "Tamanho: $(formatar_tamanho "$tamanho")"
-        info "Ignorados: node_modules, .git, caches, builds e dependências regeneráveis."
+        info "Ignorados: dependências, .git, caches, builds e arquivos de credenciais."
+        if [ "${BACKUP_PROJETO_COMPLETO:-true}" = false ]; then
+            warn "Backup parcial: guarde chaves e credenciais em local privado."
+        fi
         [ "$sem_pausa" = true ] || pause
         return 0
     fi
@@ -172,6 +226,7 @@ quantidade_itens_diretos() {
 backup_pasta_antes_excluir() {
     local alvo="$1" rotulo="$2"
     [ -d "$alvo" ] || return 0
+    backup_pre_exclusao_permitido "$alvo" || return 1
     info "Criando backup antes da exclusão..."
     if gerar_backup_publico_projeto "$alvo" "$rotulo"; then
         ok "Backup salvo e verificado em Downloads."
@@ -300,6 +355,7 @@ excluir_projeto() {
     warn "Isso removerá permanentemente: $projeto"
     read -rp "Deseja fazer um backup antes de excluir? (s/N): " fazer_backup
     if [[ "$fazer_backup" =~ ^[sS]$ ]]; then
+        backup_pre_exclusao_permitido "$projeto" || { pause; return 1; }
         if ! criar_backup_projeto "$projeto" true; then
             error "O projeto NÃO foi excluído porque o backup não foi concluído."
             pause

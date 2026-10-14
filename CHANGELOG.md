@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.0.110] - 2026-10-14
+
+### Uso diário no celular
+- Novo menu **Comandos favoritos** em Ambiente e ferramentas e Configurações. Até 12 comandos Bash salvos em arquivo privado no Painel, com nomes, confirmação antes da execução e remoção individual; não há execução automática nem armazenamento no repositório.
+- Novo **Painel de recursos**, que consulta RAM disponível, carga média de CPU e armazenamento livre somente quando o usuário abre ou atualiza a tela, sem serviço permanente. Valores podem estar indisponíveis quando o Android restringe `/proc`.
+- **Modo econômico** opcional em Configurações > Comportamento: dispensa as varreduras automáticas de projetos e processos ao redesenhar o menu principal; os menus específicos continuam consultando o estado real quando abertos. O modo não faz alegações de economia de bateria quantificada.
+- A tela Termux:X11 ganhou acesso ao repositório oficial `https://github.com/termux/termux-x11` pelo navegador, preservando a instalação X11 já disponível.
+- Adicionados testes de favoritos, permissões privadas, limites, armazenamento atômico, métricas sob demanda e configuração persistida. Testes no Android físico continuam necessários.
+
+
+## [1.0.109] - 2026-10-14
+
+### Recuperação inteligente
+- Novo menu **Projetos > Restaurar backup**: lista backups TAR.GZ, apresenta inspeção prévia e oferece restauração sem sobrescrever projetos existentes.
+- Helper Python opcional (`tools/restore_project_backup.py`) valida nomes e tipos de entradas, rejeita travessia de diretórios, links, tipos especiais e entradas duplicadas; impõe limites de tamanho, verifica espaço disponível e extrai em pasta privada antes de disponibilizar a cópia.
+- Atualização completa passa a registrar marcador de transação antes de trocar módulos; uma inicialização posterior tenta restaurar o backup local se uma atualização foi interrompida antes da confirmação. Marcadores inválidos ou backup ausente bloqueiam a inicialização para evitar carregar arquivos incompletos.
+- Testes automatizados incluem restauração normal, conflito, arquivos TAR maliciosos e retomada após interrupção. Testes reais no Android/Termux ainda necessários.
+
+
+## [1.0.108] - 2026-10-14
+
+### Segurança e estabilidade
+- Backups TAR.GZ exportados para Downloads agora excluem arquivos de credenciais e chaves conhecidas (`.env*`, PEM, P12, JKS, keystores, `credentials.json`, `.npmrc` etc.). Backup parcial recebe aviso; a operação que pede backup antes de uma exclusão é bloqueada se arquivos sensíveis não seriam preservados.
+- A sanitização de diagnósticos remove usuários e senhas embutidos em URLs com esquema, além de tokens em parâmetros de consulta. Arquivos exportados devem continuar sendo revisados pelo usuário antes de compartilhados.
+- Runtime associa uma porta ao PID do projeto ou a seus descendentes, comparando sockets com dados do `ss` e, quando disponível, `/proc/net/tcp*` e `/proc/PID/fd`. Porta de terceiros ou sem propriedade comprovada não é apresentada como servidor saudável.
+- Metadados novos de processos registram `PID_START_TICKS`, impedindo que PIDs reutilizados sejam tratados como o processo original. Encerramento sem identidade comprovada, inclusive PID legado, é bloqueado por segurança.
+- Pós-instalação distingue status real do `dpkg` de comandos com nomes compartilhados e exige executável para ferramentas verificáveis, inclusive `wget`.
+
+### Testes
+- Adicionados quatro testes de regressão de backup, sanitização, processo/porta e pacotes, ampliando a suíte de 46 para 50 arquivos.
+- Testes automatizados Linux não substituem validação de Termux/Android com permissões restritivas de `/proc` e `ss`.
+
 ## [1.0.107] - 2026-10-14
 
 ### Corrigido

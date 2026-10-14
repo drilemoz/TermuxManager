@@ -61,7 +61,9 @@ redigir_segredos() {
     ' | sed -E \
         -e 's/((JWT_SECRET|SESSION_SECRET|COOKIE_SECRET|CLIENT_SECRET|API_KEY|APIKEY|ACCESS_TOKEN|REFRESH_TOKEN|TOKEN|PASSWORD|PASS|PRIVATE_KEY|CLOUDINARY_API_SECRET|DATABASE_URL|MONGO_URI|MONGODB_URI|REDIS_URL)[[:space:]]*[:=][[:space:]]*)("[^"]*"|[^[:space:]]+)/\1[REMOVIDO]/Ig' \
         -e 's/(Authorization:[[:space:]]*(Bearer|Basic)[[:space:]]+)[A-Za-z0-9._~+\/-]+=*/\1[REMOVIDO]/Ig' \
-        -e 's#(mongodb(\+srv)?|postgres(ql)?|mysql|redis)://[^/@:[:space:]]+:[^/@[:space:]]+@#\1://[CREDENCIAIS_REMOVIDAS]@#Ig'
+        -e 's#(mongodb(\+srv)?|postgres(ql)?|mysql|redis)://[^/@:[:space:]]+:[^/@[:space:]]+@#\1://[CREDENCIAIS_REMOVIDAS]@#Ig' \
+        -e 's#([a-z][a-z0-9+.-]*://)[^/@[:space:]]+@#\1[CREDENCIAIS_REMOVIDAS]@#Ig' \
+        -e 's/([?&](access_token|api_key|token|password|passwd|secret|auth|key)=)[^&#[:space:]]+/\1[REMOVIDO]/Ig'
 }
 podar_incidentes_manager() {
     local total remover
@@ -238,7 +240,7 @@ exportar_trecho_diagnostico() {
         "Arquivo: $(basename "$destino")" \
         "Tamanho: $(tamanho_legivel_arquivo "$destino")" \
         "Destino: $(caminho_curto "$DOWNLOADS_DIR")" \
-        "Segredos comuns: removidos"
+        "Segredos comuns: filtrados; revise antes de compartilhar"
     pause
 }
 

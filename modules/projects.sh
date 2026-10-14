@@ -547,3 +547,5 @@ PROJECTS_MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$PROJECTS_MODULE_DIR/projects_github.sh"
 # shellcheck source=/dev/null
 source "$PROJECTS_MODULE_DIR/projects_storage.sh"
+# shellcheck source=/dev/null
+source "$PROJECTS_MODULE_DIR/projects_restore.sh"

@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.107  
+**Versão atual:** 1.0.110  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -28,6 +28,26 @@ O Manager usa o **nome da pasta** como identidade padrão do projeto. O campo `n
 Ao executar frontend + backend juntos, o Manager usa um painel único com quatro etapas (Backend, Frontend, Inicialização e Disponibilidade). Status, avisos, PID, logs e detecção de servidor permanecem dentro da moldura visual durante a execução. Quando uma etapa falha, o painel é encerrado corretamente e o Manager oferece **Coletar logs do teste**, gerando em Downloads um único TXT sanitizado com logs de backend, frontend, Manager e metadados de processo.
 
 
+
+### Comandos favoritos, recursos e modo econômico (1.0.110)
+
+Em **Ambiente e ferramentas > Comandos favoritos** (ou **Configurações > Comandos favoritos**) é possível armazenar até 12 comandos Bash para uso pessoal. O Manager mostra o comando e exige confirmação antes de executá-lo; nunca executa favoritos sozinho. Os dados ficam em `~/Painel/.manager-favoritos`, com permissões privadas (`600`), sem incluir tokens ou senhas nos comandos.
+
+Em **Ambiente e ferramentas > Recursos do aparelho**, o Manager mostra RAM disponível, carga média do sistema e espaço livre mediante consulta pontual; não inicia monitor residente. Em **Configurações > Comportamento**, o **modo econômico** reduz verificações automáticas de projetos e PIDs no menu principal. Isso preserva a consulta no menu de processos e não equivale a promessa de economia mensurável da bateria. A seção Termux:X11 oferece link direto para seu repositório oficial.
+
+### Recuperação inteligente (1.0.109)
+
+Em **Projetos > Restaurar backup**, o Manager lista arquivos `.tar.gz` em `Download/projetos/backups` e na pasta legada de backups, mostra o nome e o tamanho do conteúdo, e oferece restauração em `~/Painel/projetos` ou na raiz do Painel. A restauração usa **Python 3.8+** (no Termux: `pkg install python`), verifica entradas do TAR.GZ e espaço disponível, rejeita caminhos inseguros, links e dispositivos, extrai numa pasta temporária privada e só depois publica o projeto restaurado. Pastas existentes não são substituídas; pode-se escolher outro nome. O backup público não contém credenciais excluídas na geração: `.env`, chaves e dependências devem ser recuperadas ou reinstaladas separadamente.
+
+Atualizações completas iniciadas pelo menu agora registram um marcador antes de substituir `modules/manager.sh`. Na inicialização seguinte, se o Android encerrou o processo durante a transação, o Manager tenta restaurar o backup anterior e reiniciar. Se o marcador ou backup estiver inválido, interrompe e informa o erro em vez de carregar módulos incompletos. A proteção exige que `manager.sh` e `.updates` permaneçam acessíveis. Este mecanismo não cobre atualizações manuais ou falhas físicas no armazenamento.
+
+### Proteções de backups e processos (1.0.108)
+
+**Backups de projetos:** o TAR.GZ colocado em Downloads omite arquivos de credenciais reconhecíveis, como `.env*`, PEM, P12, chaves de assinatura e `credentials.json`. O Manager informa quando a cópia é parcial. Se uma exclusão tiver solicitado backup, mas houver arquivos sensíveis que ficariam fora dele, a exclusão será **bloqueada** para evitar perda silenciosa. Faça uma cópia privada segura dos arquivos antes de removê-los. O filtro não detecta todos os possíveis segredos embutidos no código.
+
+**Servidores:** uma porta responde como saudável somente quando for possível verificar que pertence ao PID do Manager ou a um processo filho. Quando o Android restringe acesso a `ss -p` e `/proc`, o vínculo pode não ser confirmado: o sistema mostra aviso, sem atribuir incorretamente portas de outros aplicativos. Um processo iniciado em versão anterior sem identidade verificável não é encerrado automaticamente, para evitar atingir um PID reutilizado.
+
+**Diagnósticos:** URLs com credenciais embutidas e parâmetros comuns de token são sanitizados. **Revise o arquivo exportado antes de compartilhar**, pois nenhum filtro cobre todos os formatos possíveis de segredo.
 
 ### Primeira instalação: correção de `wget` e pacotes ignorados (1.0.107)
 
@@ -400,17 +420,17 @@ Permite:
 
 Antes de ações coletivas, o Manager mostra quantidade, tamanho e conteúdo afetado, oferece backup opcional e exige confirmação proporcional ao risco.
 
-Backups de projetos são exportados para `Download/projetos/backups`. O Manager ignora dependências e artefatos regeneráveis como `node_modules`, `.git`, caches, `dist`, `build`, ambientes virtuais e diretórios equivalentes. A cópia temporária é removida do Termux somente depois que o arquivo em Downloads é validado por SHA-256.
+Backups de projetos são exportados para `Download/projetos/backups`. O Manager ignora dependências e artefatos regeneráveis como `node_modules`, `.git`, caches, `dist`, `build`, ambientes virtuais e diretórios equivalentes. A cópia temporária é removida do Termux somente depois que o arquivo em Downloads é validado por SHA-256. Arquivos de credenciais conhecidos são ignorados em backups públicos; esse backup não substitui uma cópia privada de suas chaves.
 
 ## Atualizações
 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.107
-Tag: v1.0.107
-Release: Manager 1.0.107
-Pacote único: TermuxManager-v1.0.107.zip
+Versão: 1.0.110
+Tag: v1.0.110
+Release: Manager 1.0.110
+Pacote único: TermuxManager-v1.0.110.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

@@ -1,6 +1,11 @@
 # Módulo: app.sh
 # Manager.sh — módulo
 
+APP_MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$APP_MODULE_DIR/commands_favorites.sh"
+source "$APP_MODULE_DIR/resources_monitor.sh"
+unset APP_MODULE_DIR
+
 
 # ============================================================================
 # SOBRE O MANAGER
@@ -209,15 +214,17 @@ menu_projetos_hub() {
         done
 
         menu_unificado "📁 PROJETOS" "Gerenciar, importar e acompanhar" \
-            "[0] Voltar  •  [1–3] Selecionar" \
+            "[0] Voltar  •  [1–4] Selecionar" \
             "1|📂|Meus projetos|Abrir, testar e organizar" \
             "2|📦|Importar projeto|Pasta, arquivo ou ZIP" \
-            "3|🚦|Em execução|$ativos componente(s) ativo(s)"
+            "3|🚦|Em execução|$ativos componente(s) ativo(s)" \
+            "4|♻️|Restaurar backup|Validar e recuperar TAR.GZ"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) gerenciar_projetos ;;
             2) importar_projeto ;;
             3) menu_processos_ativos ;;
+            4) menu_restaurar_backup_projeto ;;
             0) return ;;
             *) warn "Opção inválida."; sleep 1 ;;
         esac
@@ -228,15 +235,19 @@ menu_ambiente_hub() {
     while true; do
         detectar_variante_termux
         menu_unificado "🛠️ AMBIENTE E FERRAMENTAS" "Termux, pacotes e diagnóstico" \
-            "[0] Voltar  •  [1–3] Selecionar" \
+            "[0] Voltar  •  [1–5] Selecionar" \
             "1|🧰|Instalar ferramentas|Ambientes de desenvolvimento" \
             "2|🔧|Ambiente Termux|Atualizar e manter o Termux" \
-            "3|🔎|Diagnóstico rápido|$(termux_origem_resumida)"
+            "3|🔎|Diagnóstico rápido|$(termux_origem_resumida)" \
+            "4|📊|Recursos do aparelho|RAM, carga da CPU e armazenamento" \
+            "5|⌨️|Comandos favoritos|Atalhos locais com confirmação"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) menu_instalar_ferramentas ;;
             2) menu_ambiente_termux ;;
             3) verificar_ambiente_termux ;;
+            4) menu_painel_recursos ;;
+            5) menu_comandos_favoritos ;;
             0) return ;;
             *) warn "Opção inválida."; sleep 1 ;;
         esac
@@ -281,23 +292,29 @@ menu_ajuda_sobre_hub() {
 
 menu_principal() {
     while true; do
-        limpar_pidfiles_inativos
-        detectar_variante_termux
-
-        local ativos=0 projetos=0 pf resumo_status
-        for pf in "$PID_DIR"/*.pid; do
-            [ -e "$pf" ] && pid_ativo "$pf" && ativos=$((ativos + 1))
-        done
-        if [ -d "$PROJETOS_DIR" ]; then
-            projetos="$(find "$PROJETOS_DIR" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | wc -l | tr -d ' ')"
+        local ativos=0 projetos=0 pf resumo_status ativos_desc="0 componente(s) ativo(s)"
+        if [ "${MODO_ECONOMICO:-false}" = true ]; then
+            # Sem busca de processos/arquivos a cada retorno ao menu.
+            resumo_status="Modo econômico • Projetos e processos sob demanda"
+            ativos_desc="Consultar ao abrir Em execução"
+        else
+            limpar_pidfiles_inativos
+            detectar_variante_termux
+            for pf in "$PID_DIR"/*.pid; do
+                [ -e "$pf" ] && pid_ativo "$pf" && ativos=$((ativos + 1))
+            done
+            if [ -d "$PROJETOS_DIR" ]; then
+                projetos="$(find "$PROJETOS_DIR" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | wc -l | tr -d ' ')"
+            fi
+            projetos="${projetos:-0}"
+            resumo_status="$(termux_origem_resumida) • Projetos: $projetos • Ativos: $ativos"
+            ativos_desc="$ativos componente(s) ativo(s)"
         fi
-        projetos="${projetos:-0}"
-        resumo_status="$(termux_origem_resumida) • Projetos: $projetos • Ativos: $ativos"
 
         menu_unificado "🧰 MANAGER.SH — VERSÃO $MANAGER_VERSION" "$resumo_status" \
             "[0] Sair  •  [1–8] Selecionar" \
             "1|📁|Gerenciar projetos|Abrir, testar e organizar" \
-            "2|🚦|Em execução|$ativos componente(s) ativo(s)" \
+            "2|🚦|Em execução|$ativos_desc" \
             "3|📦|Importar projeto|Pasta, arquivo ou ZIP" \
             "4|🐧|Linux no celular|Distros, PRoot e Termux:X11" \
             "5|🛠️|Ambiente e ferramentas|Termux e pacotes" \

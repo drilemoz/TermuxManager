@@ -204,12 +204,20 @@ comando_referencia_pacote() {
 pacote_funcional_pos_instalacao() {
     local pacote="${1:-}" comando
     [ -n "$pacote" ] || return 1
-    comando="$(comando_referencia_pacote "$pacote")"
-    [ -n "$comando" ] && command -v "$comando" >/dev/null 2>&1 && return 0
-
-    # Mantém compatibilidade para pacotes que não expõem um binário direto,
-    # mas exige que o status do dpkg seja realmente "install ok installed".
-    dpkg-query -W -f='${Status}' "$pacote" 2>/dev/null | grep -Fqx 'install ok installed'
+    # Se o dpkg estiver presente, ele é a fonte de verdade sobre o pacote.
+    # Um ls/awk/find no PATH pode ser fornecido por outro pacote, ou pelo host.
+    if command -v dpkg-query >/dev/null 2>&1; then
+        dpkg-query -W -f='${Status}' "$pacote" 2>/dev/null | grep -Fqx 'install ok installed' || return 1
+        case "$pacote" in
+            coreutils|grep|sed|gawk|findutils|nano|micro|fish|git|curl|wget|zip|unzip|jq)
+                comando="$(comando_referencia_pacote "$pacote")"
+                command -v "$comando" >/dev/null 2>&1 || return 1
+                return 0 ;;
+            *) return 0 ;; # Pacote instalado sem executável único de referência.
+        esac
+    fi
+    # Sem dpkg-query, a existência de comandos não comprova instalação.
+    return 1
 }
 
 instalar_lista_pacotes() {

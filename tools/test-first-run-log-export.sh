@@ -20,12 +20,15 @@ cleanup() { rm -rf "$TMP"; }
 trap cleanup EXIT
 mkdir -p "$TMP/home/storage/downloads" "$TMP/base/logs" "$TMP/bin"
 
-# Simula um bootstrap onde os comandos estão funcionais, mas os nomes dos
-# pacotes não podem ser consultados no banco dpkg. A pós-checagem deve validar
-# a funcionalidade real e não gerar falso negativo para coreutils/findutils/gawk.
+# Simula um bootstrap com pacotes realmente registrados no banco dpkg.
+# Na 1.0.108 um comando genérico do host não comprova o pacote Termux;
+# os executáveis representativos também devem estar disponíveis.
 cat > "$TMP/bin/dpkg-query" <<'EOF'
 #!/usr/bin/env bash
-exit 1
+case "${*: -1}" in
+    coreutils|findutils|gawk) printf 'install ok installed\n' ;;
+    *) exit 1 ;;
+esac
 EOF
 chmod +x "$TMP/bin/dpkg-query"
 
@@ -41,7 +44,7 @@ chmod +x "$TMP/bin/dpkg-query"
     pacote_funcional_pos_instalacao gawk
 )
 
-echo "OK: pós-checagem valida comandos funcionais sem falso negativo por nome de pacote."
+echo "OK: pós-checagem confirma status dpkg e executáveis representativos."
 
 # A opção do wizard deve copiar apenas um log sanitizado para Downloads.
 (

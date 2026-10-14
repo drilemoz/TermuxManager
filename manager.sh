@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 ###############################################################################
-# manager.sh — Gerenciador de Projetos para Termux — Versão 1.0.107
+# manager.sh — Gerenciador de Projetos para Termux — Versão 1.0.110
 #
 # Gerencia importação, listagem, teste (detecção de stack + instalação
 # automática de dependências) e execução de projetos frontend/backend
@@ -19,7 +19,7 @@ if ! pwd -P >/dev/null 2>&1; then
     cd "${HOME:-/}" 2>/dev/null || cd /
 fi
 
-MANAGER_VERSION="1.0.107"
+MANAGER_VERSION="1.0.110"
 MANAGER_DEVELOPER="Adriedson Aparecido Lemos"
 MANAGER_REPOSITORY="https://github.com/adriedsonlemoz/TermuxManager"
 MANAGER_LICENSE="Uso livre conforme o repositório"
@@ -61,6 +61,43 @@ carregar_modulos() {
         source "$caminho"
     done
 }
+
+# Recuperação de uma atualização completa interrompida antes do commit.
+# O marcador fica na área privada da instalação, não em Downloads.
+recuperar_atualizacao_interrompida() {
+    local journal="$BASE_DIR/.updates/.pending-update" arquivo backup
+    [ -f "$journal" ] || return 0
+    IFS= read -r arquivo < "$journal" || true
+    if [[ ! "$arquivo" =~ ^manager_backup_[0-9]{8}_[0-9]{6}\.tar\.gz$ ]]; then
+        printf 'ERRO: marcador de atualização inválido. Nenhum arquivo foi alterado.\n' >&2
+        return 1
+    fi
+    backup="$BASE_DIR/.updates/$arquivo"
+    if [ ! -f "$backup" ] || ! tar -tzf "$backup" >/dev/null 2>&1; then
+        printf 'ERRO: backup de recuperação ausente ou corrompido: %s\n' "$backup" >&2
+        return 1
+    fi
+    printf 'Recuperando atualização interrompida a partir de %s...\n' "$arquivo" >&2
+    # O arquivo é gerado localmente antes da troca. Manter o marcador permite
+    # tentar novamente caso o Android encerre o processo durante esta operação.
+    rm -rf -- "$BASE_DIR/modules" || return 1
+    if ! tar -xzf "$backup" -C "$BASE_DIR"; then
+        printf 'ERRO: recuperação incompleta. Marcador preservado para nova tentativa.\n' >&2
+        return 1
+    fi
+    rm -f -- "$journal" || return 1
+    printf 'Backup anterior recuperado. Recarregando o Manager...\n' >&2
+    return 0
+}
+
+# Sem carregar submódulos potencialmente incompletos.
+if [ -f "$BASE_DIR/.updates/.pending-update" ]; then
+    if recuperar_atualizacao_interrompida; then
+        exec bash "$BASE_DIR/manager.sh" "$@"
+    else
+        exit 1
+    fi
+fi
 
 carregar_modulos
 main "$@"

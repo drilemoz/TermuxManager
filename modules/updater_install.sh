@@ -232,6 +232,7 @@ instalar_pacote_manager() {
     tela_atualizacao_etapa 2 "$total_etapas" "Criando backup de segurança" "Destino: $(basename "$backup")" "concluída"
     sleep 0.35
     local novo_manager="$BASE_DIR/.manager_new_$stamp.sh" novos_modulos="$BASE_DIR/.modules_new_$stamp" antigos_modulos="$BASE_DIR/.modules_old_$stamp"
+    local journal="$updates_dir/.pending-update"
     tela_atualizacao_etapa 3 "$total_etapas" "Preparando a nova versão" "Normalizando e organizando os arquivos."
     # tr -d '\r' normaliza quebras de linha estilo Windows (\r\n), que podem
     # vir do arquivo baixado (edição no PC, apps de transferência, etc.) e
@@ -247,22 +248,35 @@ instalar_pacote_manager() {
     tela_atualizacao_etapa 3 "$total_etapas" "Preparando a nova versão" "Arquivos prontos para instalação." "concluída"
     sleep 0.35
     tela_atualizacao_etapa 4 "$total_etapas" "Aplicando a atualização" "Substituindo o núcleo e os módulos."
-    mv "$MODULES_DIR" "$antigos_modulos" || { error "Falha ao preparar substituição."; rm -rf "$tmp" "$novo_manager" "$novos_modulos"; pause; return; }
-    if mv "$novos_modulos" "$MODULES_DIR" && mv -f "$novo_manager" "$SELF_PATH"; then
-        rm -rf "$antigos_modulos"
-    else
-        rm -rf "$MODULES_DIR" "$novo_manager" "$novos_modulos" "$antigos_modulos"
-        updater_restaurar_backup "$backup" 2>/dev/null || true
-        error "Atualização falhou; o backup foi restaurado."; rm -rf "$tmp"; pause; return
-    fi
-
-    if ! updater_sincronizar_auxiliares "$pacote"; then
-        updater_restaurar_backup "$backup" 2>/dev/null || true
-        error "Falha ao sincronizar arquivos auxiliares; o backup foi restaurado."
-        rm -rf "$tmp"
+    # Registra transação ANTES da primeira alteração destrutiva. Se o Android
+    # encerrar o Manager, manager.sh restaura este backup na próxima abertura.
+    if ! printf '%s\n' "$(basename "$backup")" > "${journal}.tmp" ||
+       ! mv -f -- "${journal}.tmp" "$journal"; then
+        error "Não foi possível registrar o ponto de recuperação."
+        rm -rf -- "$tmp" "$novo_manager" "$novos_modulos" "${journal}.tmp"
         pause
         return 1
     fi
+    if ! mv "$MODULES_DIR" "$antigos_modulos" ||
+       ! mv "$novos_modulos" "$MODULES_DIR" ||
+       ! mv -f "$novo_manager" "$SELF_PATH"; then
+        error "Atualização interrompida na troca de arquivos. Tentando recuperar..."
+        if updater_restaurar_backup "$backup"; then rm -f -- "$journal"; fi
+        rm -rf -- "$tmp" "$novo_manager" "$novos_modulos" "$antigos_modulos"
+        pause
+        return 1
+    fi
+
+    if ! updater_sincronizar_auxiliares "$pacote"; then
+        if updater_restaurar_backup "$backup"; then rm -f -- "$journal"; fi
+        error "Falha ao sincronizar arquivos auxiliares. Backup preservado para recuperação."
+        rm -rf -- "$tmp"
+        pause
+        return 1
+    fi
+    # Todos os arquivos necessários já foram sincronizados; finaliza commit.
+    rm -f -- "$journal" || { error "Falha ao finalizar a transação."; pause; return 1; }
+    rm -rf -- "$antigos_modulos"
     tela_atualizacao_etapa 4 "$total_etapas" "Aplicando a atualização" "Código, documentação e ferramentas sincronizados." "concluída"
     sleep 0.35
     tela_atualizacao_etapa 5 "$total_etapas" "Finalizando" "Registrando a atualização e preparando o reinício."

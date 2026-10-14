@@ -612,14 +612,15 @@ menu_termux_x11() {
         linux_x11_companion_instalado && companion="instalado"
         linux_x11_apk_instalado && app="instalado"
         menu_unificado "🖥️ TERMUX:X11" "Interface gráfica para Linux" \
-            "[0] Voltar  •  [1–7] Selecionar" \
+            "[0] Voltar  •  [1–8] Selecionar" \
             "1|📋|Status|Companion: $companion • App: $app" \
             "2|📦|Instalar componentes|x11-repo + termux-x11-nightly" \
             "3|📲|Baixar aplicativo Android|APK oficial nightly" \
             "4|🪟|Ambientes gráficos|XFCE, LXQt, LXDE, MATE, Openbox, i3, KDE e GNOME" \
             "5|▶️|Iniciar desktop|Escolher um ambiente instalado e abrir no X11" \
             "6|⏹️|Parar sessão gráfica|Encerrar servidor X11" \
-            "7|🩺|Diagnóstico X11|Tela preta, cores e lentidão"
+            "7|🩺|Diagnóstico X11|Tela preta, cores e lentidão" \
+            "8|🌐|Repositório oficial|GitHub termux/termux-x11"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) linux_status_x11 ;;
@@ -629,6 +630,13 @@ menu_termux_x11() {
             5) linux_iniciar_desktop ;;
             6) linux_parar_x11 ;;
             7) linux_diagnostico_x11 ;;
+            8)
+                if command -v termux-open-url >/dev/null 2>&1; then
+                    termux-open-url "https://github.com/termux/termux-x11" || true
+                else
+                    caixa_simples "Repositório oficial" "https://github.com/termux/termux-x11"
+                    pause
+                fi ;;
             0) return ;;
             *) warn "Opção inválida."; sleep 1 ;;
         esac

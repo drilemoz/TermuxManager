@@ -1,12 +1,46 @@
 # Módulo: runtime_processes.sh
 # Processos, portas, execução e saúde de servidores.
 
+# Valor de starttime em /proc/<pid>/stat (campo 22). Junto ao PID,
+# distingue processos diferentes após reutilização do número pelo Android.
+pid_inicio_ticks() {
+    local pid="$1" linha resto ticks
+    [[ "$pid" =~ ^[0-9]+$ ]] && [ -r "/proc/$pid/stat" ] || return 1
+    IFS= read -r linha < "/proc/$pid/stat" || return 1
+    # O campo comm pode conter espaços e parênteses: remova até o último ") ".
+    resto="${linha##*) }"
+    ticks="$(printf '%s\n' "$resto" | awk '{print $20}')"
+    [[ "$ticks" =~ ^[0-9]+$ ]] || return 1
+    printf '%s' "$ticks"
+}
+
+pid_identidade_confirmada() {
+    local arquivo_pid="$1" pid meta esperado atual
+    [ -r "$arquivo_pid" ] || return 1
+    pid="$(cat "$arquivo_pid" 2>/dev/null || true)"
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    meta="${arquivo_pid%.pid}.meta"
+    esperado="$(meta_valor "$meta" PID_START_TICKS 2>/dev/null || true)"
+    [[ "$esperado" =~ ^[0-9]+$ ]] || return 1
+    atual="$(pid_inicio_ticks "$pid" 2>/dev/null || true)"
+    [ -n "$atual" ] && [ "$atual" = "$esperado" ] && kill -0 "$pid" 2>/dev/null
+}
+
 pid_ativo() {
-    local arquivo_pid="$1" pid
+    local arquivo_pid="$1" pid meta esperado
     [ -f "$arquivo_pid" ] || return 1
     pid="$(cat "$arquivo_pid" 2>/dev/null || true)"
     [[ "$pid" =~ ^[0-9]+$ ]] || return 1
-    kill -0 "$pid" 2>/dev/null
+    kill -0 "$pid" 2>/dev/null || return 1
+    meta="${arquivo_pid%.pid}.meta"
+    esperado="$(meta_valor "$meta" PID_START_TICKS 2>/dev/null || true)"
+    if [ -n "$esperado" ]; then
+        # Fail closed: se a identidade não pode ser confirmada, não aceitar PID.
+        pid_identidade_confirmada "$arquivo_pid"
+    else
+        # Arquivo legado: apenas para exibição. Nunca encerrar sem identidade.
+        return 0
+    fi
 }
 
 limpar_pidfiles_inativos() {
@@ -163,7 +197,10 @@ executar_em_background() {
     }
 
     pid="$(cat "$pidfile" 2>/dev/null || true)"
+    local ticks
+    ticks="$(pid_inicio_ticks "$pid" 2>/dev/null || true)"
     {
+        [ -n "$ticks" ] && printf 'PID_START_TICKS=%s\n' "$ticks"
         printf 'DIR=%s\n' "$dir"
         printf 'PROJECT=%s\n' "$projeto"
         printf 'LABEL=%s\n' "$(basename "$projeto")"
@@ -224,8 +261,12 @@ estado_servidor_processo() {
         ESTADO_PROCESSO="servidor disponível"; ICONE_PROCESSO="🟢"
         return 0
     fi
+    local suspeita
+    suspeita="$(meta_valor "$PID_DIR/${nome}.meta" UNVERIFIED_PORT 2>/dev/null || true)"
     if log_indica_falha_servidor "$logf"; then
         ESTADO_PROCESSO="processo ativo • servidor falhou"; ICONE_PROCESSO="🟡"
+    elif porta_valida "$suspeita"; then
+        ESTADO_PROCESSO="porta $suspeita aberta • proprietário não confirmado"; ICONE_PROCESSO="🟡"
     else
         ESTADO_PROCESSO="processo ativo • servidor não confirmado"; ICONE_PROCESSO="🟡"
     fi
@@ -415,40 +456,90 @@ porta_log_estrita() {
     porta_valida "$porta" && printf '%s' "$porta"
 }
 
+# Confirma que um socket LISTEN está no processo ou na sua árvore.
+# A porta simplesmente responder não é evidência de que pertence ao projeto.
+porta_pertence_pid() {
+    local pid="$1" porta="$2" hex inode alvo fd
+    [[ "$pid" =~ ^[0-9]+$ ]] && porta_valida "$porta" || return 1
+    if comando_existe ss; then
+        if ss -ltnpH 2>/dev/null | awk -v p=":$porta" -v pid="pid=$pid," '
+            $4 ~ p"$" && index($0,pid) {ok=1; exit} END {exit !ok}'; then
+            return 0
+        fi
+    fi
+    # Fallback para instalações onde ss não mostra o proprietário.
+    # /proc/net/tcp* lista o inode e /proc/PID/fd identifica o socket.
+    hex="$(printf '%04X' "$porta")"
+    local inodes=""
+    inodes="$(awk -v port=":$hex" '$2 ~ port"$" && $4 == "0A" { print $10 }' \
+        /proc/net/tcp /proc/net/tcp6 2>/dev/null || true)"
+    [ -n "$inodes" ] || return 1
+    for fd in "/proc/$pid/fd/"*; do
+        [ -L "$fd" ] || continue
+        alvo="$(readlink "$fd" 2>/dev/null || true)"
+        case "$alvo" in
+            'socket:['*']')
+                inode="${alvo#socket:[}"; inode="${inode%]}"
+                if printf '%s\n' "$inodes" | grep -Fqx "$inode"; then
+                    return 0
+                fi
+                ;;
+        esac
+    done
+    return 1
+}
+
+porta_pertence_arvore() {
+    local pid="$1" porta="$2" filho
+    porta_pertence_pid "$pid" "$porta" && return 0
+    while IFS= read -r filho; do
+        [ -n "$filho" ] || continue
+        if porta_pertence_arvore "$filho" "$porta"; then
+            return 0
+        fi
+    done < <(pgrep -P "$pid" 2>/dev/null || true)
+    return 1
+}
+
 porta_processo() {
-    local nome="$1"
-    local logf="$LOG_DIR/${nome}.log" meta="$PID_DIR/${nome}.meta"
-    local pid porta=""
-
-    porta="$(meta_valor "$meta" PORT 2>/dev/null || true)"
-    if porta_valida "$porta" && porta_em_escuta "$porta"; then
-        printf '%s
-' "$porta"
-        return 0
-    fi
-
-    porta="$(meta_valor "$meta" EXPECTED_PORT 2>/dev/null || true)"
-    if porta_valida "$porta" && porta_em_escuta "$porta"; then
-        meta_definir "$meta" PORT "$porta" || true
-        printf '%s\n' "$porta"
-        return 0
-    fi
-
-    pid=$(cat "$PID_DIR/${nome}.pid" 2>/dev/null || true)
-    porta="$(porta_arvore_pid "$pid" 2>/dev/null || true)"
-    if ! porta_valida "$porta" || ! porta_em_escuta "$porta"; then
-        porta="$(porta_log_estrita "$logf" 2>/dev/null || true)"
-    fi
-
-    if porta_valida "$porta" && porta_em_escuta "$porta"; then
-        meta_definir "$meta" PORT "$porta" || true
-        printf '%s
-' "$porta"
-    else
-        meta_definir "$meta" PORT "" || true
-        printf '?
-'
-    fi
+    local nome="$1" logf="$LOG_DIR/${nome}.log" meta="$PID_DIR/${nome}.meta"
+    local pid porta candidato="" alternativa=""
+    pid="$(cat "$PID_DIR/${nome}.pid" 2>/dev/null || true)"
+    [[ "$pid" =~ ^[0-9]+$ ]] || { printf '?\n'; return 0; }
+    local chave
+    for chave in PORT EXPECTED_PORT; do
+        porta="$(meta_valor "$meta" "$chave" 2>/dev/null || true)"
+        if porta_valida "$porta" && porta_em_escuta "$porta"; then
+            if porta_pertence_arvore "$pid" "$porta"; then
+                meta_definir "$meta" PORT "$porta" || true
+                meta_definir "$meta" UNVERIFIED_PORT "" || true
+                printf '%s\n' "$porta"
+                return 0
+            fi
+            candidato="$porta"
+        fi
+    done
+    # Detecta uma porta dinâmica alternativa, que pode ser diferente da .env.
+    for chave in arvore log; do
+        if [ "$chave" = arvore ]; then
+            porta="$(porta_arvore_pid "$pid" 2>/dev/null || true)"
+        else
+            porta="$(porta_log_estrita "$logf" 2>/dev/null || true)"
+        fi
+        if porta_valida "$porta" && porta_em_escuta "$porta"; then
+            if porta_pertence_arvore "$pid" "$porta"; then
+                meta_definir "$meta" PORT "$porta" || true
+                meta_definir "$meta" UNVERIFIED_PORT "" || true
+                printf '%s\n' "$porta"
+                return 0
+            fi
+            candidato="$porta"
+        fi
+    done
+    # Diferenciar "porta não detectada" de "porta aberta sem dono comprovado".
+    meta_definir "$meta" PORT "" || true
+    meta_definir "$meta" UNVERIFIED_PORT "$candidato" || true
+    printf '?\n'
 }
 
 encerrar_arvore_processo() {
@@ -467,10 +558,15 @@ parar_processo() {
         warn "O processo '$nome' já não está ativo."
         return 1
     fi
+    if ! pid_identidade_confirmada "$pf"; then
+        warn "Processo com identidade não verificada; encerramento bloqueado."
+        info "Reinicie o Manager ou encerre manualmente após conferir o PID."
+        return 1
+    fi
     pid=$(cat "$pf")
     encerrar_arvore_processo "$pid" TERM
     sleep 1
-    if kill -0 "$pid" 2>/dev/null; then
+    if pid_identidade_confirmada "$pf"; then
         encerrar_arvore_processo "$pid" KILL
     fi
     rm -f "$pf" "$PID_DIR/${nome}.meta"
