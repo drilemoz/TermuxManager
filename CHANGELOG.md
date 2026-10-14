@@ -1,3 +1,11 @@
+## v1.0.116 (2026-10-14)
+
+- **Termux/PRoot:** corrige tela aparentemente congelada após confirmar instalação do LXDE/LXQt/XFCE: o buffer de interface é descarregado antes de iniciar o processo demorado.
+- **Status real:** imprime o tempo decorrido e etapa atual a cada 10 segundos; conta eventos reais `Get:` e pacotes configurados (`Setting up`) quando o APT os emite, sem inventar porcentagem nem ETA.
+- **Visibilidade:** saída original e mensagens de etapa continuam indo para o terminal e para `linux.log`, com arquivo de status temporário privado e limpeza ao encerrar.
+- **Compatibilidade:** mantém instalação de oito desktops, todos os gerenciadores de pacotes e retorno de erro real do PRoot; sem encerrar instalações demoradas automaticamente.
+- Adiciona teste de regressão do buffer, etapas, tempo, contadores e propagação de falhas.
+
 ## v1.0.115 (2026-10-14)
 
 - **Linux/PRoot:** instalação de ambientes gráficos mostra a chamada ao PRoot imediatamente e emite avisos periódicos enquanto aguarda a saída do Linux/APT. Mantém retorno real do comando e permite cancelar pelo terminal.

@@ -490,10 +490,10 @@ LAUNCHER='$launcher'
 if command -v apt-get >/dev/null 2>&1; then
   export DEBIAN_FRONTEND=noninteractive
   export DEBCONF_NONINTERACTIVE_SEEN=true
-  printf "[Manager] Ubuntu/PRoot iniciou; verificando APT...\n"
-  printf "[Manager] Atualizando índices APT...\n"
+  printf "[Manager][ETAPA] Ubuntu iniciado; preparando APT\n"
+  printf "[Manager][ETAPA] Atualizando listas de pacotes\n"
   apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=45 -o Acquire::https::Timeout=45
-  printf "[Manager] Instalando pacotes do desktop %s...\n" "\$DESKTOP_ID"
+  printf "[Manager][ETAPA] Instalando pacotes do desktop %s\n" "\$DESKTOP_ID"
   case "\$DESKTOP_ID" in
     xfce) apt-get install -y xfce4 xfce4-terminal dbus-x11 ;;
     lxqt) apt-get install -y lxqt qterminal dbus-x11 || apt-get install -y lxqt-core qterminal dbus-x11 ;;
@@ -505,6 +505,7 @@ if command -v apt-get >/dev/null 2>&1; then
     gnome) apt-get install -y gnome-session gnome-shell gnome-terminal dbus-x11 ;;
   esac
 elif command -v pacman >/dev/null 2>&1; then
+  printf "[Manager][ETAPA] Atualizando repositórios (pacman)\n"
   pacman -Sy --noconfirm
   case "\$DESKTOP_ID" in
     xfce) pacman -S --needed --noconfirm xfce4 xfce4-goodies dbus ;;
@@ -517,6 +518,7 @@ elif command -v pacman >/dev/null 2>&1; then
     gnome) pacman -S --needed --noconfirm gnome gnome-terminal dbus ;;
   esac
 elif command -v apk >/dev/null 2>&1; then
+  printf "[Manager][ETAPA] Atualizando repositórios (apk)\n"
   apk update
   case "\$DESKTOP_ID" in
     xfce) apk add xfce4 xfce4-terminal dbus ;;
@@ -529,6 +531,7 @@ elif command -v apk >/dev/null 2>&1; then
     gnome) apk add gnome-shell gnome-session gnome-terminal dbus ;;
   esac
 elif command -v dnf >/dev/null 2>&1; then
+  printf "[Manager][ETAPA] Instalando pacotes (dnf)\n"
   case "\$DESKTOP_ID" in
     xfce) dnf -y install @xfce-desktop-environment dbus-x11 || dnf -y group install "Xfce Desktop" || dnf -y install xfce4-session xfce4-panel xfce4-settings xfce4-terminal dbus-x11 ;;
     lxqt) dnf -y group install "LXQt Desktop" || dnf -y install lxqt-session lxqt-panel pcmanfm-qt qterminal dbus-x11 ;;
@@ -540,6 +543,7 @@ elif command -v dnf >/dev/null 2>&1; then
     gnome) dnf -y group install "GNOME Desktop Environment" || dnf -y install gnome-session gnome-shell gnome-terminal dbus-x11 ;;
   esac
 elif command -v zypper >/dev/null 2>&1; then
+  printf "[Manager][ETAPA] Atualizando repositórios (zypper)\n"
   zypper --non-interactive refresh
   case "\$DESKTOP_ID" in
     xfce) zypper --non-interactive install -t pattern xfce || zypper --non-interactive install xfce4-session xfce4-panel xfce4-settings xfce4-terminal dbus-1-x11 ;;
@@ -555,6 +559,7 @@ else
   echo "Gerenciador de pacotes não reconhecido para instalação automática." >&2
   exit 65
 fi
+printf "[Manager][ETAPA] Verificando inicializador do desktop\n"
 if ! command -v "\$LAUNCHER" >/dev/null 2>&1; then
   printf "[Manager][ERRO] Inicializador ausente: %s\n" "\$LAUNCHER" >&2
   exit 66
@@ -562,34 +567,104 @@ fi
 EOF
 }
 
-# O PRoot pode demorar antes de produzir sua primeira linha de saída.
-# O aviso periódico é apenas informativo; não interrompe downloads ou dpkg.
+# A saída é encaminhada imediatamente ao terminal e ao log; não armazenar
+# o progresso em um buffer de UI. Os contadores refletem somente eventos
+# observados no APT (nunca porcentagem ou previsão inventada).
+linux_desktop_registrar_fluxo() {
+    local status_file="${1:-}" linha etapa="Entrando na distribuição" downloads=0 configurados=0 agora atualizou
+    while IFS= read -r linha || [ -n "$linha" ]; do
+        printf '%s\n' "$linha"
+        printf '%s\n' "$linha" >> "$LINUX_LOG"
+        atualizou=false
+        case "$linha" in
+            '[Manager][ETAPA] '*)
+                etapa="${linha#'[Manager][ETAPA] '}"
+                atualizou=true ;;
+            Get:[0-9]*|Downloading\ *|Baixando\ *)
+                downloads=$((downloads + 1))
+                etapa="Recebendo arquivos dos repositórios"
+                atualizou=true ;;
+            Unpacking\ *|Descompactando\ *|Preparing\ to\ unpack\ *)
+                etapa="Descompactando pacotes"
+                atualizou=true ;;
+            'Setting up '*|'Configurando '*)
+                configurados=$((configurados + 1))
+                etapa="Configurando pacotes"
+                atualizou=true ;;
+            'Reading package lists'*|'Lendo listas de pacotes'*)
+                etapa="Lendo listas de pacotes"
+                atualizou=true ;;
+            'Building dependency tree'*|'Construindo árvore de dependências'*)
+                etapa="Resolvendo dependências"
+                atualizou=true ;;
+        esac
+        if [ "$atualizou" = true ] && [ -n "$status_file" ]; then
+            agora="$(date +%s 2>/dev/null || printf 0)"
+            printf '%s|%s|%s|%s\n' "$etapa" "$downloads" "$configurados" "$agora" > "$status_file" 2>/dev/null || true
+        fi
+    done
+}
+
+linux_desktop_tempo_legivel() {
+    local segundos="${1:-0}"
+    [[ "$segundos" =~ ^[0-9]+$ ]] || segundos=0
+    printf '%dm%02ds' "$((segundos / 60))" "$((segundos % 60))"
+}
+
+# Aviso periódico é um status de tempo/etapa; não prova progresso real.
+# Não há timeout global: downloads e dpkg podem precisar de vários minutos.
 linux_executar_desktop_com_progresso() {
-    local alias="${1:-}" guest_script="${2:-}" rc=0 heartbeat_pid intervalo segundos=0
-    local trap_int trap_term shell_pid
+    local alias="${1:-}" guest_script="${2:-}" rc=0 heartbeat_pid intervalo shell_pid
+    local trap_int trap_term status_file status_dir inicio agora total etapa downloads configurados ultima intervalo_atividade
     [ -n "$alias" ] && [ -n "$guest_script" ] || return 2
-    intervalo="${LINUX_DESKTOP_HEARTBEAT_SECONDS:-20}"
-    [[ "$intervalo" =~ ^[0-9]+$ ]] && [ "$intervalo" -ge 1 ] || intervalo=20
-    printf '[Manager] Iniciando PRoot (%s); aguardando resposta do Linux...\n' "$alias" | tee -a "$LINUX_LOG"
-    printf '[Manager] Se ficar sem saída, serão exibidos avisos a cada %ss. Ctrl+C cancela a tentativa.\n' "$intervalo" | tee -a "$LINUX_LOG"
+    intervalo="${LINUX_DESKTOP_HEARTBEAT_SECONDS:-10}"
+    [[ "$intervalo" =~ ^[0-9]+$ ]] && [ "$intervalo" -ge 1 ] || intervalo=10
+    status_dir="${LINUX_STATE_DIR:-$(dirname "$LINUX_LOG")}"
+    mkdir -p "$status_dir" 2>/dev/null || true
+    status_file="$(mktemp "$status_dir/desktop-status.XXXXXX" 2>/dev/null)" || status_file=""
+    if [ -n "$status_file" ]; then chmod 600 "$status_file" 2>/dev/null || true; fi
+    inicio="$(date +%s 2>/dev/null || printf 0)"
+    if [ -n "$status_file" ]; then
+        printf 'Entrando na distribuição|0|0|%s\n' "$inicio" > "$status_file"
+    fi
+    printf '[Manager] Abrindo Linux (%s). Tempo: 0m00s.\n' "$alias"
+    printf '[Manager] Etapas e saída do instalador aparecem abaixo; sem porcentagem fictícia.\n'
+    printf '[Manager] Atualização de status a cada %ss. Ctrl+C interrompe.\n' "$intervalo"
     shell_pid="$BASHPID"
     (
         while sleep "$intervalo"; do
             kill -0 "$shell_pid" 2>/dev/null || exit 0
-            segundos=$((segundos + intervalo))
-            printf '[Manager] Aguardando Linux/APT há %ss. Pode estar inicializando ou baixando pacotes; Ctrl+C para interromper.\n' "$segundos" | tee -a "$LINUX_LOG"
+            agora="$(date +%s 2>/dev/null || printf 0)"
+            total=$((agora - inicio))
+            [ "$total" -ge 0 ] || total=0
+            etapa="Entrando na distribuição"; downloads=0; configurados=0; ultima="$inicio"
+            if [ -n "$status_file" ] && [ -r "$status_file" ]; then
+                IFS='|' read -r etapa downloads configurados ultima < "$status_file" || true
+            fi
+            [[ "$ultima" =~ ^[0-9]+$ ]] || ultima="$inicio"
+            intervalo_atividade=$((agora - ultima)); [ "$intervalo_atividade" -ge 0 ] || intervalo_atividade=0
+            printf '[Manager][STATUS] Tempo %s | Etapa: %s | Downloads observados: %s | Pacotes configurados: %s | Última atividade: %ss\n' \
+                "$(linux_desktop_tempo_legivel "$total")" "${etapa:-Aguardando saída}" "${downloads:-0}" "${configurados:-0}" "$intervalo_atividade"
         done
     ) &
     heartbeat_pid=$!
-    trap_int="$(trap -p INT)"
-    trap_term="$(trap -p TERM)"
+    trap_int="$(trap -p INT)"; trap_term="$(trap -p TERM)"
     trap 'kill "$heartbeat_pid" 2>/dev/null || true' INT TERM
-    proot-distro login "$alias" -- /bin/sh -lc "$guest_script" 2>&1 | tee -a "$LINUX_LOG" || rc=${PIPESTATUS[0]}
+    if proot-distro login "$alias" -- /bin/sh -lc "$guest_script" 2>&1 | linux_desktop_registrar_fluxo "$status_file"; then
+        rc=0
+    else
+        # Preserve o status do PRoot, não o do leitor de saída.
+        rc=${PIPESTATUS[0]}
+    fi
     kill "$heartbeat_pid" 2>/dev/null || true
     wait "$heartbeat_pid" 2>/dev/null || true
+    if [ -n "$status_file" ]; then rm -f -- "$status_file"; fi
     if [ -n "$trap_int" ]; then eval "$trap_int"; else trap - INT; fi
     if [ -n "$trap_term" ]; then eval "$trap_term"; else trap - TERM; fi
-    linux_log "desktop proot encerrado: alias=$alias código=$rc"
+    agora="$(date +%s 2>/dev/null || printf 0)"
+    total=$((agora - inicio)); [ "$total" -ge 0 ] || total=0
+    printf '[Manager] Execução finalizada em %s (código %s).\n' "$(linux_desktop_tempo_legivel "$total")" "$rc"
+    linux_log "desktop proot encerrado: alias=$alias código=$rc tempo=${total}s"
     return "$rc"
 }
 
@@ -646,6 +721,9 @@ linux_instalar_desktop_na_distro() {
         "Gerenciador: $(linux_descrever_gerenciador_distro "$gerenciador")" \
         "O Manager validará '$launcher' ao terminar." \
         "Não feche o Termux durante esta etapa."
+    # Essencial: o cabeçalho e a caixa ficam em buffer até a próxima leitura.
+    # Instalações longas precisam renderizar o quadro ANTES de iniciar o PRoot.
+    ui_buffer_flush 2>/dev/null || true
     # A linha de comando dentro da distribuição produz um status real; tee nunca
     # deve esconder o erro do gerenciador de pacotes ou do proot-distro.
     local rc=0

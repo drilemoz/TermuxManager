@@ -55,8 +55,8 @@ proot-distro() {
 export LINUX_DESKTOP_HEARTBEAT_SECONDS=1
 FAKE_PROOT_SLOW=1
 linux_executar_desktop_com_progresso ubuntu 'echo ok' > "$T/progress.log"
-grep -q 'Iniciando PRoot (ubuntu)' "$T/progress.log"
-grep -q 'Aguardando Linux/APT há 1s' "$T/progress.log"
+grep -q 'Abrindo Linux (ubuntu)' "$T/progress.log"
+grep -q '\[Manager\]\[STATUS\] Tempo 0m01s' "$T/progress.log"
 FAKE_PROOT_EXIT=37
 if linux_executar_desktop_com_progresso ubuntu 'echo ok' > "$T/failed.log"; then
   echo 'PRoot falhou mas retorna sucesso' >&2; exit 1
