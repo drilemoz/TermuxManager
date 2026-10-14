@@ -595,7 +595,18 @@ linux_exportar_log_downloads() {
         error "Já existe um arquivo de diagnóstico com este identificador."
         return 1
     fi
-    if ! ( umask 077; linux_limpar_ansi_log < "$LINUX_LOG" | linux_redigir_log_exportado > "$tmp" ); then
+    # Anexa até 64 KiB recentes do servidor X11, quando disponíveis, com a
+    # mesma sanitização do log principal. Nunca acompanha links simbólicos.
+    local servidor="${LINUX_STATE_DIR:-}/x11-server.log"
+    if ! ( umask 077
+           {
+               linux_limpar_ansi_log < "$LINUX_LOG" | linux_redigir_log_exportado
+               if [ -n "${LINUX_STATE_DIR:-}" ] && [ -f "$servidor" ] && [ -r "$servidor" ] && [ ! -L "$servidor" ]; then
+                   printf '\n===== TERMUX:X11 (últimos 64 KiB) =====\n'
+                   tail -c 65536 -- "$servidor" | linux_limpar_ansi_log | linux_redigir_log_exportado
+               fi
+           } > "$tmp"
+       ); then
         rm -f -- "$tmp"
         error "Falha ao sanitizar o log. Nenhum arquivo foi exportado."
         return 1

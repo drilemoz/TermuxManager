@@ -1,3 +1,11 @@
+## v1.0.117 (2026-10-14)
+
+- **Termux:X11:** diagnostica encerramentos forçados (`signal 9`, SIGKILL) sem atribuí-los automaticamente ao Phantom Process Killer. A orientação alerta sobre restrições de processos filhos e memória e mantém ajustes do Android manuais.
+- **Sessões:** registra antes do PRoot um marcador privado que permite avisar, na próxima abertura, quando uma sessão anterior não retornou ao Manager; o marcador é removido quando a execução volta ao script, inclusive em caso de erro.
+- **Logs:** registra saída do servidor X11 em `x11-server.log` privado e encaminha a saída da sessão PRoot ao log Linux exportável, preservando o status de retorno. A exportação inclui até 64 KiB recentes do log do servidor, sanitizados.
+- **Suporte:** nova opção `Signal 9 e Android`; não ativa ADB, root, wakelocks nem configurações globais do aparelho sem ação do usuário.
+- Os testes locais simulam encerramentos do PRoot, sem garantir a prevenção de um SIGKILL imposto pelo Android.
+
 ## v1.0.116 (2026-10-14)
 
 - **Termux/PRoot:** corrige tela aparentemente congelada após confirmar instalação do LXDE/LXQt/XFCE: o buffer de interface é descarregado antes de iniciar o processo demorado.

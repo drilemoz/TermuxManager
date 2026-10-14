@@ -806,8 +806,65 @@ linux_selecionar_desktop_instalado() {
     return 0
 }
 
+# Um SIGKILL do Android pode matar o próprio Termux antes de qualquer trap.
+# Marcador privado: um reinício posterior pode avisar que a sessão anterior
+# não retornou ao Manager. Isso NÃO identifica a causa nem comprova SIGKILL.
+linux_x11_marcador_sessao() {
+    printf '%s/x11-session-pending.state\n' "$LINUX_STATE_DIR"
+}
+
+linux_x11_marcar_inicio_sessao() {
+    local arquivo
+    arquivo="$(linux_x11_marcador_sessao)"
+    mkdir -p -- "$LINUX_STATE_DIR" || return 1
+    if [ -L "$arquivo" ]; then
+        linux_log 'X11: marcador simbólico recusado; não será sobrescrito'
+        return 1
+    fi
+    (umask 077; printf 'iniciada_em=%s\ndistribuicao=%s\ndesktop=%s\n' \
+        "$(date '+%Y-%m-%dT%H:%M:%S')" "$1" "$2" > "$arquivo")
+}
+
+linux_x11_verificar_sessao_anterior() {
+    local arquivo
+    arquivo="$(linux_x11_marcador_sessao)"
+    [ -f "$arquivo" ] && [ ! -L "$arquivo" ] || return 1
+    linux_log 'X11: sessão anterior não retornou ao Manager; possível interrupção externa'
+    caixa_simples 'Sessão anterior interrompida' \
+        'O Manager não recebeu o término normal da sessão gráfica.' \
+        'Possíveis causas: Termux encerrado, falha do Android, falta de memória ou SIGKILL.' \
+        'A mensagem signal 9 sugere encerramento forçado, sem identificar o responsável.' \
+        'Consulte Suporte X11 > Signal 9 e restrições do Android.'
+    return 0
+}
+
+linux_x11_orientar_sigkill() {
+    caixa_simples 'Processo encerrado (signal 9)' \
+        'SIGKILL é um encerramento forçado; não é falha comprovada de instalação do desktop.' \
+        'Android 12+: o controle de processos filhos é uma causa conhecida, mas não a única.' \
+        'Confira Termux > Bateria > Sem restrições, caso esteja disponível.' \
+        'Nas Opções do desenvolvedor, procure Desativar restrições de processos filhos.' \
+        'Essa alteração é manual e pode aumentar o uso de bateria e recursos.' \
+        'O Manager não altera configurações globais, root ou ADB automaticamente.'
+}
+
+# Esta função retorna o status original do PRoot, inclusive 137 quando
+# um subprocesso foi encerrado por SIGKILL. A própria shell pode ser morta
+# sem conseguir executar esta função até o fim.
+linux_x11_executar_sessao_proot() {
+    local alias="$1" comando="$2" rc=0
+    if proot-distro login "$alias" --shared-tmp -- /bin/sh -lc "$comando" 2>&1 | tee -a "$LINUX_LOG"; then
+        rc=0
+    else
+        rc=${PIPESTATUS[0]}
+    fi
+    linux_log "X11: processo do desktop retornou status=$rc"
+    return "$rc"
+}
+
 linux_iniciar_desktop() {
     local alias_preselecionado="${1:-}"
+    linux_x11_verificar_sessao_anterior || true
     linux_garantir_proot_distro || { pause; return 1; }
     cabecalho_tela "🖥️ Iniciar desktop Linux" "Termux:X11 + ambiente gráfico"
     if ! linux_x11_companion_instalado; then
@@ -873,8 +930,22 @@ linux_iniciar_desktop() {
         "Feche a sessão gráfica para retornar ao Manager."
     confirmar_acao "Iniciar $nome agora?" "s" || return 0
 
+    # Gravar antes de entrar no PRoot permite diagnosticar encerramentos do
+    # próprio terminal em que a limpeza Bash já não pode ser executada.
+    linux_x11_marcar_inicio_sessao "$LINUX_DISTRO_ALIAS" "$desktop" || {
+        warn 'Não foi possível salvar o estado da sessão X11.'
+        return 1
+    }
+    local x11_server_log="$LINUX_STATE_DIR/x11-server.log"
+    if [ -L "$x11_server_log" ]; then
+        warn 'O caminho de log do X11 é um link simbólico, operação recusada.'
+        rm -f -- "$(linux_x11_marcador_sessao)"
+        return 1
+    fi
+    (umask 077; : >> "$x11_server_log") || return 1
     pkill -f 'termux-x11 :1' 2>/dev/null || true
-    XDG_RUNTIME_DIR="${TMPDIR:-$PREFIX/tmp}" termux-x11 :1 >/dev/null 2>&1 &
+    XDG_RUNTIME_DIR="${TMPDIR:-$PREFIX/tmp}" termux-x11 :1 >> "$x11_server_log" 2>&1 &
+    linux_log 'X11: companion iniciado; saída disponível no log privado x11-server.log'
     sleep 1
     if ! linux_x11_testar_abertura_android; then
         warn "Não foi possível abrir o aplicativo X11 pelo Termux."
@@ -888,12 +959,21 @@ linux_iniciar_desktop() {
 
     local session_cmd
     session_cmd="export DISPLAY=:1; export XDG_RUNTIME_DIR=/tmp; if command -v dbus-launch >/dev/null 2>&1; then exec dbus-launch --exit-with-session '$launcher'; else exec '$launcher'; fi"
-    if ! proot-distro login "$LINUX_DISTRO_ALIAS" --shared-tmp -- /bin/sh -lc "$session_cmd"; then
-        error "A sessão gráfica terminou com erro."
-        caixa_simples "Dicas" \
-            "$nome foi verificado antes da abertura da sessão." \
-            "Se aparecer tela preta, consulte Diagnóstico X11." \
-            "Ambientes pesados como KDE/GNOME podem exigir mais memória."
+    local rc=0
+    linux_log "X11: iniciando sessão guest distro=$LINUX_DISTRO_ALIAS desktop=$desktop"
+    linux_x11_executar_sessao_proot "$LINUX_DISTRO_ALIAS" "$session_cmd" || rc=$?
+    rm -f -- "$(linux_x11_marcador_sessao)"
+    if [ "$rc" -ne 0 ]; then
+        error "A sessão gráfica terminou com erro (status=$rc)."
+        if [ "$rc" -eq 137 ]; then
+            linux_log 'X11: status 137; possível SIGKILL do processo guest (causa não confirmada)'
+            linux_x11_orientar_sigkill
+        else
+            caixa_simples "Dicas" \
+                "$nome foi verificado antes da abertura da sessão." \
+                "Se aparecer tela preta, consulte Diagnóstico X11." \
+                "Ambientes pesados como KDE/GNOME podem exigir mais memória."
+        fi
         pause
     fi
 }
@@ -933,6 +1013,7 @@ linux_diagnostico_x11() {
         "O diagnóstico registra o motivo no log Linux." \
         "Confira X11 em Configurações > Aplicativos e tente iniciar." \
         "O Manager não deve bloquear a inicialização por essa consulta."
+    linux_x11_orientar_sigkill
     caixa_simples "PRoot + X11" \
         "O Manager inicia a distribuição com --shared-tmp." \
         "DISPLAY usado: :1"
@@ -969,14 +1050,15 @@ linux_menu_suporte_x11() {
     local escolha
     while true; do
         menu_unificado "🩺 SUPORTE TERMUX:X11" "Solução de problemas e documentação" \
-            "[0] Voltar  •  [1–7] Selecionar" \
+            "[0] Voltar  •  [1–8] Selecionar" \
             "1|📋|Status do X11|Aplicativo e companion" \
             "2|⏹️|Parar sessão gráfica|Encerrar o servidor X11" \
             "3|🩺|Diagnóstico X11|Tela preta, cores e lentidão" \
             "4|🌐|Repositório oficial|GitHub termux/termux-x11" \
             "5|📥|Copiar log para Downloads|Salvar o log Linux em .log" \
             "6|▶️|Testar abertura do X11|Verificar atividade do aplicativo Android" \
-            "7|🔐|Permissões para instalar APKs|Integração Termux e ajustes do Android"
+            "7|🔐|Permissões para instalar APKs|Integração Termux e ajustes do Android" \
+            "8|⚠️|Signal 9 e Android|Processos encerrados pelo sistema"
         ler_opcao
         escolha="$RESPOSTA_MENU"
         case "$escolha" in
@@ -994,6 +1076,7 @@ linux_menu_suporte_x11() {
             5) linux_exportar_log_downloads || true; pause ;;
             6) linux_x11_testar_abertura_menu ;;
             7) linux_menu_permissoes_apk ;;
+            8) linux_x11_orientar_sigkill; pause ;;
             0) return 0 ;;
             *) feedback_curto "Opção inválida." ;;
         esac
