@@ -69,50 +69,164 @@ linux_pacotes_operacao() {
     fi
     linux_admin_exec "$alias" "$acao pacote $pacote" "$cmd"
 }
+# Catálogo de distribuições: não usar o catálogo nativo do Termux.
+# Carregado também quando este módulo é testado isoladamente.
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/linux_catalog_data.sh"
+
 linux_pacotes_catalogo_pacotes() {
-    # Identificadores do catálogo são candidatos; a disponibilidade real é consultada na distro.
-    case "$1" in
-      dev) printf '%s\n' 'git python3 nodejs gcc make' ;;
-      editors) printf '%s\n' 'nano vim micro' ;;
-      rede) printf '%s\n' 'curl wget openssh' ;;
-      monitor) printf '%s\n' 'htop btop procps' ;;
-      arquivos) printf '%s\n' 'zip unzip tar rsync' ;;
-      sessoes) printf '%s\n' 'tmux screen' ;;
-      utils) printf '%s\n' 'jq tree less' ;;
-      web) printf '%s\n' 'python3 nginx' ;;
-      *) return 1 ;;
-    esac
+    # Compatibilidade com verificações legadas (v1.0.120).
+    linux_catalog_listar "$1" | cut -d'|' -f1 | paste -sd' ' -
 }
-linux_pacotes_catalogo() {
-    local alias="$1" escolha categoria nomes i pacote
-    local -a itens=() pacotes=()
-    menu_unificado '📚 Catálogo Linux' 'Escolha uma categoria' '[0] Voltar' \
-        '1|👨‍💻|Desenvolvimento|Git, Python, Node.js, compiladores' \
-        '2|✍️|Editores|Nano, Vim, Micro' \
-        '3|🌐|Rede|Curl, Wget, OpenSSH' \
-        '4|📊|Monitoramento|Htop, Btop, Procps' \
-        '5|📁|Arquivos|Zip, Unzip, Tar, Rsync' \
-        '6|⌨️|Sessões|Tmux, Screen' \
-        '7|🧰|Utilitários|JQ, Tree, Less' \
-        '8|🌍|Web|Python, Nginx'
-    ler_opcao; escolha="$RESPOSTA_MENU"
-    case "$escolha" in
-        1) categoria=dev;;2) categoria=editors;;3) categoria=rede;;4) categoria=monitor;;
-        5) categoria=arquivos;;6) categoria=sessoes;;7) categoria=utils;;8) categoria=web;;
-        0) return 0;;*) return 1;;
+
+linux_catalog_modo_texto() {
+    case "$1" in G) printf 'Requer desktop/X11';; T) printf 'Terminal (sem X11)';; esac
+}
+linux_catalog_consumo_texto() {
+    case "$1" in L) printf 'leve';; M) printf 'médio';; H) printf 'pesado';; esac
+}
+
+# O status é consultado no repositório da distro, não em uma lista presumida.
+# stdout: instalado|disponivel|ausente|desconhecido. Consulta sob demanda:
+# cada pacote verificado requer iniciar uma sessão PRoot, não executar em lote
+# os 160 candidatos toda vez que o usuário abre o catálogo.
+linux_catalog_status_pacote() {
+    local distro="$1" pm="$2" pacote="$3" cmd saida rc=0
+    linux_pacote_nome_valido "$pacote" || return 2
+    linux_admin_alias_valido "$distro" || return 2
+    case "$pm" in
+        apt)
+            cmd="if dpkg-query -W -f='\${Status}' '$pacote' 2>/dev/null | grep -qx 'install ok installed'; then echo instalado; elif apt-cache policy '$pacote' 2>/dev/null | awk '/^[[:space:]]*Candidate:/ { if (\$2 != \"(none)\") found=1 } END { exit !found }'; then echo disponivel; else echo ausente; fi"
+            ;;
+        pacman)
+            cmd="if pacman -Q '$pacote' >/dev/null 2>&1; then echo instalado; elif pacman -Si '$pacote' >/dev/null 2>&1; then echo disponivel; else echo ausente; fi" ;;
+        apk)
+            cmd="if apk info -e '$pacote' 2>/dev/null | grep -qx '$pacote'; then echo instalado; elif apk search -x '$pacote' 2>/dev/null | grep -q .; then echo disponivel; else echo ausente; fi" ;;
+        dnf)
+            cmd="if rpm -q '$pacote' >/dev/null 2>&1; then echo instalado; elif dnf -q info '$pacote' >/dev/null 2>&1; then echo disponivel; else echo ausente; fi" ;;
+        zypper)
+            cmd="if rpm -q '$pacote' >/dev/null 2>&1; then echo instalado; elif zypper --non-interactive info '$pacote' 2>/dev/null | grep -qi 'Information for package'; then echo disponivel; else echo ausente; fi" ;;
+        *) printf 'desconhecido\n'; return 0 ;;
     esac
-    nomes="$(linux_pacotes_catalogo_pacotes "$categoria")" || return 1
-    read -r -a pacotes <<< "$nomes"
-    for ((i=0;i<${#pacotes[@]};i++)); do
-        itens+=("$((i+1))|📦|${pacotes[$i]}|Ver disponibilidade e instalar")
+    saida="$(proot-distro login "$distro" -- /bin/sh -lc "$cmd" 2>/dev/null)" || rc=$?
+    if [ "$rc" -ne 0 ]; then printf 'desconhecido\n'; return 0; fi
+    saida="${saida##*$'\n'}"
+    case "$saida" in instalado|disponivel|ausente) printf '%s\n' "$saida" ;; *) printf 'desconhecido\n' ;; esac
+}
+
+linux_catalog_detalhes() {
+    local distro="$1" pacote="$2" nome="$3" modo="$4" custo="$5" nota="$6"
+    local pm status escolha mode_text cost_text
+    pm="$(linux_admin_gerenciador "$distro")"
+    cabecalho_tela '🔎 Consultando repositório' "$distro • $pacote"
+    ui_buffer_flush 2>/dev/null || true
+    status="$(linux_catalog_status_pacote "$distro" "$pm" "$pacote")"
+    mode_text="$(linux_catalog_modo_texto "$modo")"
+    cost_text="$(linux_catalog_consumo_texto "$custo")"
+    while true; do
+        menu_unificado "📦 $nome" "$distro • pacote: $pacote" '[0] Voltar • [1–2] Selecionar' \
+            "1|⬇️|Instalar|Estado no repositório: $status" \
+            "2|ℹ️|Ver informações|Versão, descrição e dependências"
+        caixa_simples_wrap 'Compatibilidade e recursos' \
+            "Modo: $mode_text • Custo relativo: $cost_text" \
+            "$nota" \
+            "Situação: $status (consulta feita nesta distribuição)" \
+            'O consumo depende das dependências, aparelho e sistema gráfico.'
+        ler_opcao; escolha="$RESPOSTA_MENU"
+        case "$escolha" in
+            1)
+                if [ "$status" = instalado ]; then
+                    warn 'O pacote já consta como instalado.'; pause; return 0
+                elif [ "$status" = ausente ]; then
+                    warn 'Este nome não tem candidato disponível no repositório atual.'
+                    warn 'Tente atualizar a lista de pacotes ou pesquisar um equivalente.'
+                    pause; return 0
+                elif [ "$status" = desconhecido ]; then
+                    warn 'Não foi possível confirmar disponibilidade. A instalação pelo catálogo foi bloqueada.'
+                    warn 'Consulte as configurações de rede e repositórios Linux.'
+                    pause; return 1
+                fi
+                if [ "$modo" = G ]; then
+                    caixa_simples_wrap 'Precisa de X11' \
+                        'Instalar o pacote não inicia o aplicativo Android Termux:X11.' \
+                        'O desktop deve funcionar antes de abrir este programa gráfico.'
+                fi
+                [ "$custo" = H ] && warn 'Aplicativo potencialmente pesado: confira espaço e memória na prévia.'
+                linux_pacotes_operacao "$distro" instalar "$pacote"
+                return $?
+                ;;
+            2) linux_pacotes_operacao "$distro" detalhes "$pacote" || true ;;
+            0) return 0 ;;
+            *) feedback_curto 'Opção inválida.' ;;
+        esac
     done
-    menu_unificado '📦 Pacotes Linux' "$alias • nomes podem variar por distribuição" "[0] Voltar • [1–${#itens[@]}] Pacote" "${itens[@]}"
-    ler_opcao; escolha="$RESPOSTA_MENU"
-    if [[ "$escolha" =~ ^[0-9]+$ ]] && [ "$escolha" -ge 1 ] && [ "$escolha" -le "${#pacotes[@]}" ]; then
-        pacote="${pacotes[$((escolha - 1))]}"
-        linux_pacotes_operacao "$alias" instalar "$pacote" || true
-    fi
 }
+
+# Uma página curta por vez: o teclado ocupa boa parte do display Android.
+linux_pacotes_catalogo() {
+    local distro="$1" pm page=0 escolha atual categoria etiqueta icon desc ctotal
+    local -a linhas=() opcoes=() campos=()
+    local pagina=0 indice inicio fim total modo custo pacote nome nota
+    pm="$(linux_admin_gerenciador "$distro")"
+    while true; do
+        mapfile -t linhas < <(linux_catalog_categorias)
+        total=${#linhas[@]}; inicio=$((page * 7)); fim=$((inicio + 7))
+        [ "$fim" -gt "$total" ] && fim=$total
+        opcoes=()
+        for ((indice=inicio;indice<fim;indice++)); do
+            IFS='|' read -r categoria icon etiqueta desc <<< "${linhas[indice]}"
+            opcoes+=("$((indice-inicio+1))|$icon|$etiqueta|$desc")
+        done
+        [ "$fim" -lt "$total" ] && opcoes+=('8|➡️|Próxima página|Mais categorias')
+        [ "$page" -gt 0 ] && opcoes+=('9|⬅️|Página anterior|Voltar às categorias anteriores')
+        menu_unificado '📚 Programas Linux' "$distro • $pm • categorias $((page+1))/$(((total+6)/7))" \
+            '[0] Voltar • [1–7] Abrir • [8/9] Páginas' "${opcoes[@]}"
+        ler_opcao; escolha="$RESPOSTA_MENU"
+        case "$escolha" in
+            0) return 0 ;;
+            8) if [ "$fim" -lt "$total" ]; then page=$((page+1)); fi; continue ;;
+            9) if [ "$page" -gt 0 ]; then page=$((page-1)); fi; continue ;;
+        esac
+        if [[ "$escolha" =~ ^[1-7]$ ]] && [ "$((inicio+escolha-1))" -lt "$fim" ]; then
+            IFS='|' read -r categoria icon etiqueta desc <<< "${linhas[$((inicio+escolha-1))]}"
+            linux_catalog_pagina_pacotes "$distro" "$categoria" "$etiqueta" || true
+        else feedback_curto 'Opção inválida.'; fi
+    done
+}
+
+linux_catalog_pagina_pacotes() {
+    local distro="$1" categoria="$2" titulo="$3" page=0 escolha total inicio fim indice pacote nome modo custo nota
+    local -a linhas=() opcoes=()
+    mapfile -t linhas < <(linux_catalog_listar "$categoria") || return 1
+    total=${#linhas[@]}
+    while true; do
+        inicio=$((page*7)); fim=$((inicio+7))
+        [ "$fim" -gt "$total" ] && fim=$total
+        opcoes=()
+        for ((indice=inicio;indice<fim;indice++)); do
+            IFS='|' read -r pacote nome modo custo nota <<< "${linhas[indice]}"
+            if [ "$modo" = G ]; then
+                opcoes+=("$((indice-inicio+1))|🖥️|$nome|$pacote • X11 • $(linux_catalog_consumo_texto "$custo")")
+            else
+                opcoes+=("$((indice-inicio+1))|⌨️|$nome|$pacote • terminal • $(linux_catalog_consumo_texto "$custo")")
+            fi
+        done
+        [ "$fim" -lt "$total" ] && opcoes+=('8|➡️|Próxima página|Mais programas')
+        [ "$page" -gt 0 ] && opcoes+=('9|⬅️|Página anterior|Ver programas anteriores')
+        menu_unificado "📦 $titulo" "$distro • $total opções • página $((page+1))/$(((total+6)/7))" \
+            '[0] Categorias • [1–7] Detalhar • [8/9] Páginas' "${opcoes[@]}"
+        ler_opcao; escolha="$RESPOSTA_MENU"
+        case "$escolha" in
+            0) return 0 ;;
+            8) if [ "$fim" -lt "$total" ]; then page=$((page+1)); fi; continue ;;
+            9) if [ "$page" -gt 0 ]; then page=$((page-1)); fi; continue ;;
+        esac
+        if [[ "$escolha" =~ ^[1-7]$ ]] && [ "$((inicio+escolha-1))" -lt "$fim" ]; then
+            IFS='|' read -r pacote nome modo custo nota <<< "${linhas[$((inicio+escolha-1))]}"
+            linux_catalog_detalhes "$distro" "$pacote" "$nome" "$modo" "$custo" "$nota" || true
+        else feedback_curto 'Opção inválida.'; fi
+    done
+}
+
 linux_pacotes_listar_instalados() {
     local alias="$1" pm cmd
     pm="$(linux_admin_gerenciador "$alias")"
@@ -130,7 +244,7 @@ linux_menu_pacotes_distro() {
     local alias="$1" escolha pacote
     while true; do
         menu_unificado '📦 Programas e pacotes' "$alias • comandos executados pelo PRoot" '[0] Voltar • [1–7] Selecionar' \
-            '1|📚|Catálogo por categoria|Instalar aplicativos de terminal' \
+            '1|📚|Catálogo Linux ampliado|Gráficos X11 e terminal; verificar repositório' \
             '2|🔎|Pesquisar pacote|Consultar repositório da distribuição' \
             '3|ℹ️|Informações de pacote|Versão e dependências, quando disponíveis' \
             '4|⬇️|Instalar pacote por nome|Simulação no APT e confirmação' \

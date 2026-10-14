@@ -1,3 +1,10 @@
+## v1.0.121 (2026-10-14)
+
+- Catálogo Linux ampliado para 21 categorias e 160 entradas com navegadores gráficos e de terminal, escritório, PDF, mídias, desenvolvimento, jogos, ferramentas científicas, servidores e acessórios do desktop.
+- Pesquisa de disponibilidade sob demanda na distro PRoot, indicação de instalado/disponível/ausente/desconhecido, bloqueio seguro para indisponibilidade, informações sobre X11 e custo relativo, e navegação em páginas curtas.
+- Mantidos gerenciamento de pacotes por nome, simulação APT, confirmações e funcionalidades anteriores; pacote Chromium/Firefox via Snap não é sugerido no Ubuntu PRoot.
+- Adicionados testes específicos da listagem, validação de nomes, status do APT, falha do PRoot e paginação Android.
+
 ## v1.0.120 (2026-10-14)
 
 **Central de programas e gerenciamento de pacotes.**

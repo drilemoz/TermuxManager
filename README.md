@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.120  
+**Versão atual:** 1.0.121  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -28,6 +28,15 @@ O Manager usa o **nome da pasta** como identidade padrão do projeto. O campo `n
 Ao executar frontend + backend juntos, o Manager usa um painel único com quatro etapas (Backend, Frontend, Inicialização e Disponibilidade). Status, avisos, PID, logs e detecção de servidor permanecem dentro da moldura visual durante a execução. Quando uma etapa falha, o painel é encerrado corretamente e o Manager oferece **Coletar logs do teste**, gerando em Downloads um único TXT sanitizado com logs de backend, frontend, Manager e metadados de processo.
 
 
+
+### Catálogo Linux ampliado e navegadores (1.0.121)
+
+- **21 categorias, 160 sugestões de pacotes** exclusivas do catálogo das distribuições Linux PRoot, sem copiar o catálogo de dependências do Termux.
+- Navegadores GUI (NetSurf, GNOME Web, Falkon, Qutebrowser) e de terminal (W3M, Lynx, Links, ELinks); gerenciadores de arquivos, escritório, PDF, multimídia, edição de imagens, IDEs, linguagens, terminal, rede, servidores, bancos de dados, jogos, ciência, temas e fontes.
+- Menu paginado em **7 itens por tela** (8 = próxima; 9 = anterior), adequado à tela com teclado do Android. Antes de instalar, apresenta descrição, necessidade de X11, indicação **relativa** de consumo e **verifica sob demanda** no repositório da distro se o pacote está instalado, disponível ou ausente.
+- No APT, consulta `dpkg-query` e `apt-cache policy` dentro do Ubuntu/Debian; os demais gerenciadores usam suas próprias consultas. Se consulta falhar ou pacote estiver ausente, **não instala automaticamente pelo catálogo**. É possível pesquisar/instalar outro nome pela central, com confirmação.
+- A prévia do APT com `apt-get -s` continua disponível e informa dependências; **estimativas de consumo não substituem tamanho efetivo de download**. A presença do pacote no repositório não garante que sua GUI funcione no Android/PRoot.
+- Evita sugerir `chromium-browser` e `firefox` no Ubuntu como instalação direta: os pacotes distribuídos via Snap não são adequados ao PRoot sem systemd. Não instala nem baixa nada quando se abre o catálogo. Pacotes diferentes/ausentes em Alpine, Arch ou Fedora são identificados na consulta.
 
 ### Central de programas e gerenciamento de pacotes (1.0.120)
 
@@ -497,10 +506,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.120
-Tag: v1.0.120
-Release: Manager 1.0.120
-Pacote único: TermuxManager-v1.0.120.zip
+Versão: 1.0.121
+Tag: v1.0.121
+Release: Manager 1.0.121
+Pacote único: TermuxManager-v1.0.121.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
