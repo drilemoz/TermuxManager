@@ -47,6 +47,7 @@ linux_baixar_x11_apk() { registrar apk_baixar; }
 linux_status_x11() { registrar x11_status; }
 linux_parar_x11() { registrar x11_parar; }
 linux_diagnostico_x11() { registrar x11_diagnostico; }
+linux_exportar_log_downloads() { registrar log_para_downloads; }
 linux_x11_apk_instalado() { return 1; }
 linux_x11_companion_instalado() { return 1; }
 linux_coletar_info_distro() {
@@ -108,6 +109,16 @@ grep -q 'Aplicativo Android (APK)' "$MENU_TEXT"
 cenario 4 3 0 0
 menu_termux_x11
 [ "$(cat "$EVENTS")" = 'x11_diagnostico' ]
+
+# O log completo pode ser copiado tanto em Ajuda quanto em Suporte X11.
+cenario 5 5 0 0
+menu_linux_celular
+[ "$(cat "$EVENTS")" = 'log_para_downloads' ]
+grep -q 'Copiar log para Downloads' "$MENU_TEXT"
+
+cenario 4 5 0 0
+menu_termux_x11
+[ "$(cat "$EVENTS")" = 'log_para_downloads' ]
 
 # Invalid input must not dispatch other commands.
 cenario 99 0

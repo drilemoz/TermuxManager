@@ -141,11 +141,12 @@ linux_menu_ajuda_diagnostico() {
     local escolha perfil status_proot status_x11 instaladas
     while true; do
         menu_unificado "🩺 AJUDA DO LINUX" "Requisitos, estado e problemas comuns" \
-            "[0] Voltar  •  [1–4] Selecionar" \
+            "[0] Voltar  •  [1–5] Selecionar" \
             "1|📱|Compatibilidade|Memória, CPU e espaço no aparelho" \
             "2|🩺|Ambiente PRoot|Diagnosticar e reparar" \
             "3|ℹ️|Status dos componentes|PRoot, X11 e distribuições" \
-            "4|❓|Entenda Linux e X11|Diferença entre terminal e desktop"
+            "4|❓|Entenda Linux e X11|Diferença entre terminal e desktop" \
+            "5|📥|Copiar log para Downloads|Salvar diagnóstico da instalação em .log"
         ler_opcao
         escolha="$RESPOSTA_MENU"
         case "$escolha" in
@@ -182,6 +183,7 @@ linux_menu_ajuda_diagnostico() {
                     "Comece por Meus Linux para entrar no terminal."
                 pause
                 ;;
+            5) linux_exportar_log_downloads || true; pause ;;
             0) return 0 ;;
             *) feedback_curto "Opção inválida." ;;
         esac

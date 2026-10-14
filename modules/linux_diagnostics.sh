@@ -570,6 +570,49 @@ linux_redigir_log_exportado() {
     fi
 }
 
+# Compartilhamento do log bruto de instalação somente após sanitização.
+# O arquivo original permanece na pasta privada do Manager.
+linux_exportar_log_downloads() {
+    local carimbo destino tmp pasta
+    if [ ! -f "$LINUX_LOG" ] || [ ! -r "$LINUX_LOG" ]; then
+        error "Ainda não há log do Linux para copiar."
+        return 1
+    fi
+    if ! resolver_downloads_dir >/dev/null 2>&1; then
+        error "Downloads não está acessível. Execute termux-setup-storage."
+        return 1
+    fi
+    pasta="${DOWNLOADS_DIR:-}"
+    if [ -z "$pasta" ] || [ ! -d "$pasta" ] || [ ! -w "$pasta" ]; then
+        error "Sem permissão para gravar em Downloads."
+        return 1
+    fi
+    carimbo="$(date '+%Y%m%d-%H%M%S')-$$"
+    destino="$pasta/termux-manager-linux-$carimbo.log"
+    tmp="$pasta/.termux-manager-linux-$carimbo.part"
+    # Não seguir links simbólicos existentes ao criar ou mover o relatório.
+    if [ -e "$tmp" ] || [ -L "$tmp" ] || [ -e "$destino" ] || [ -L "$destino" ]; then
+        error "Já existe um arquivo de diagnóstico com este identificador."
+        return 1
+    fi
+    if ! ( umask 077; linux_limpar_ansi_log < "$LINUX_LOG" | linux_redigir_log_exportado > "$tmp" ); then
+        rm -f -- "$tmp"
+        error "Falha ao sanitizar o log. Nenhum arquivo foi exportado."
+        return 1
+    fi
+    if ! mv -n -- "$tmp" "$destino"; then
+        rm -f -- "$tmp"
+        error "Falha ao mover o log para Downloads."
+        return 1
+    fi
+    caixa_simples_wrap "📥 Log copiado" \
+        "Arquivo: $(basename "$destino")" \
+        "Destino: $(caminho_curto "$pasta")" \
+        "Conteúdo: log Linux completo, com segredos comuns ocultados." \
+        "Revise o arquivo antes de compartilhar: o filtro não detecta todos os segredos."
+    return 0
+}
+
 linux_exportar_diagnostico_distro() {
     local alias="${1:-}" pasta carimbo slug destino shell_exib loader_exib erro_pt orientacao proot_status
     [ -n "$alias" ] || return 1

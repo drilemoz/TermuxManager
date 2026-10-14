@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.0.113] - 2026-10-14
+
+- **X11, APK Android:** quando o APK já está em Downloads, permite reutilizá-lo sem download repetido; quando o pacote é identificado no Android, explica que não precisa reinstalar.
+- **Permissão TermuxContentProvider:** identifica ausência da configuração `allow-external-apps=true` e orienta instalar o APK pelo gerenciador de arquivos. Por segurança, nunca ativa automaticamente acesso de aplicativos externos ao Termux.
+- **Detecção Android:** falha em `pm path com.termux.x11` passa a significar "não confirmado", não "desinstalado". Permite tentar iniciar o desktop mesmo com a detecção inconclusiva.
+- **Diagnóstico X11:** registra falhas ao abrir a Activity Android e mostra instruções de recuperação, sem esconder a falha da integração.
+- **Teste de regressão:** adicionadas simulações para APK existente, permissão negada, pacote oculto e launcher Android.
+
+## [1.0.112] - 2026-10-14
+
+### Corrigido
+- Gerador de scripts de desktop Linux (XFCE, LXQt, LXDE, MATE, Openbox, i3, KDE e GNOME) deixou de incluir aspas literais indevidas nas instruções `case` e `command -v`. Na versão anterior, essa fuga incorreta podia ignorar o comando de instalação de todos os desktops após o `apt-get update`, falhando sem mensagem específica de pacote.
+- O resultado do instalador preserva o código de saída real do PRoot, com mensagens de etapa e aviso mais claro, sem atribuir toda falha a nomes de pacotes.
+
+### Adicionado
+- Copiar o **log Linux completo e sanitizado para Downloads** em **Linux > Ajuda e diagnóstico** e **Interface gráfica (X11) > Suporte**.
+- Ao falhar a instalação de um desktop, o Manager oferece copiar o log diretamente, sem obrigar o usuário a procurar a pasta interna.
+- Testes de regressão que executam o script guest gerado para os oito desktops usando simuladores de APT e garantem que o comando de instalação realmente seja chamado, além de validar falhas e exportação segura.
+
+### Limites
+- Testes de APT/PRoot realizados com simulação em Linux; a instalação real no Ubuntu PRoot/Android ainda precisa ser confirmada.
+- Logs em Downloads são sanitizados contra padrões comuns, mas devem ser revisados antes de compartilhar.
+
 ## [1.0.111] - 2026-10-14
 
 ### Menus Linux simplificados

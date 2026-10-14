@@ -21,6 +21,63 @@ linux_x11_companion_instalado() {
     command -v termux-x11 >/dev/null 2>&1
 }
 
+# O Android pode ocultar pacotes de uma consulta feita pelo shell do Termux.
+# Falha em `pm path` não comprova que o APK esteja desinstalado.
+linux_x11_apk_status_texto() {
+    if linux_x11_apk_instalado; then
+        printf 'detectado no Android'
+    else
+        printf 'não confirmado (pode estar instalado)'
+    fi
+}
+
+# Termux v0.118+ exige consentimento explícito para compartilhar arquivos
+# usando termux-open/ContentProvider. Não modificar esta opção sem o usuário.
+linux_x11_compartilhamento_permitido() {
+    local arquivo="${HOME:-}/.termux/termux.properties"
+    [ -f "$arquivo" ] && grep -Eq '^[[:space:]]*allow-external-apps[[:space:]]*=[[:space:]]*true[[:space:]]*(#.*)?$' "$arquivo"
+}
+
+linux_x11_instalacao_manual() {
+    local destino="$1"
+    caixa_simples "Instalar pelo Android" \
+        "O APK já está salvo em Downloads." \
+        "Abra o gerenciador de arquivos do Android > Downloads." \
+        "Toque em $(basename -- "$destino") e escolha Instalar ou Atualizar." \
+        "Se X11 já estiver instalado, não precisa baixar de novo."
+}
+
+linux_x11_abrir_instalador() {
+    local destino="$1" retorno
+    [ -s "$destino" ] || { error "APK ausente ou vazio: $destino"; return 1; }
+    if ! command -v termux-open >/dev/null 2>&1; then
+        linux_x11_instalacao_manual "$destino"
+        return 1
+    fi
+    if ! linux_x11_compartilhamento_permitido; then
+        warn "O Termux bloqueou a abertura automática do APK por segurança."
+        caixa_simples "Permissão opcional do Termux" \
+            "Para usar termux-open, edite ~/.termux/termux.properties:" \
+            "allow-external-apps=true" \
+            "Depois execute: termux-reload-settings" \
+            "ATENÇÃO: esta opção amplia a integração de outros apps com o Termux." \
+            "O Manager não habilitará essa permissão automaticamente."
+        linux_x11_instalacao_manual "$destino"
+        linux_log "X11: termux-open não executado sem consentimento allow-external-apps"
+        return 1
+    fi
+    if termux-open --view --content-type application/vnd.android.package-archive "$destino"; then
+        ok "Solicitação enviada ao Android. Confirme Instalar ou Atualizar na tela."
+        return 0
+    else
+        retorno=$?
+        linux_log "X11: abertura do instalador falhou (código $retorno)"
+        warn "Não foi possível abrir o instalador automaticamente."
+        linux_x11_instalacao_manual "$destino"
+        return 1
+    fi
+}
+
 linux_instalar_x11_companion() {
     cabecalho_tela "🖥️ Termux:X11" "Instalar componentes no Termux"
     if ! linux_x11_android_compativel; then
@@ -62,37 +119,45 @@ linux_instalar_x11_companion() {
 
 linux_baixar_x11_apk() {
     resolver_downloads_dir >/dev/null 2>&1 || true
-    cabecalho_tela "📲 Aplicativo Termux:X11" "Baixar APK oficial nightly"
+    cabecalho_tela "📲 Aplicativo Termux:X11" "Baixar ou instalar APK oficial"
+    local destino="$DOWNLOADS_DIR/$TERMUX_X11_APK_NAME" tmp="${DOWNLOADS_DIR}/.${TERMUX_X11_APK_NAME}.part"
     caixa_simples "Origem" \
         "Projeto oficial: termux/termux-x11" \
         "Arquivo: $TERMUX_X11_APK_NAME" \
-        "Destino: $(caminho_curto "$DOWNLOADS_DIR/$TERMUX_X11_APK_NAME")" \
-        "O Android pedirá sua confirmação para instalar o APK."
+        "Destino: $(caminho_curto "$destino")" \
+        "O APK e o companion do Termux são instalações diferentes."
+    if linux_x11_apk_instalado; then
+        ok "O aplicativo Android Termux:X11 já foi detectado."
+        confirmar_acao "Baixar ou reinstalar o APK mesmo assim?" "n" || { pause; return 0; }
+    fi
+    if [ -s "$destino" ]; then
+        ok "Já existe um APK baixado em Downloads."
+        if confirmar_acao "Usar o APK existente sem baixar novamente?" "s"; then
+            linux_x11_abrir_instalador "$destino" || true
+            pause
+            return 0
+        fi
+    fi
     confirmar_acao "Baixar o APK oficial agora?" "s" || return 0
-
     if ! command -v curl >/dev/null 2>&1; then
         warn "curl não está instalado."
         confirmar_acao "Instalar curl agora?" "s" || return 1
         executar_pkg_monitorado "Instalando curl" 20 95 "Preparando download..." "Dependência necessária." -- install -y curl || return 1
     fi
-
     mkdir -p "$DOWNLOADS_DIR"
-    local destino="$DOWNLOADS_DIR/$TERMUX_X11_APK_NAME" tmp="${DOWNLOADS_DIR}/.${TERMUX_X11_APK_NAME}.part"
     rm -f "$tmp"
+    # Preserve o status do curl mesmo em ambientes sem `pipefail`.
     if curl -fL --retry 3 --connect-timeout 20 --max-time 600 \
         -o "$tmp" "$TERMUX_X11_APK_URL" 2>&1 | tee -a "$LINUX_LOG"; then
-        mv -f "$tmp" "$destino"
+        if [ ! -s "$tmp" ] || ! mv -f "$tmp" "$destino"; then
+            rm -f "$tmp"
+            error "APK baixado está vazio ou não pôde ser salvo."
+            pause
+            return 1
+        fi
         linux_log "APK Termux:X11 baixado: $destino"
         ok "APK salvo em $(caminho_curto "$destino")."
-        caixa_simples "Instalação no Android" \
-            "O Manager pode abrir o instalador, mas não confirma a tela do Android por você." \
-            "Se o Android bloquear, permita 'Instalar apps desconhecidos' para o Termux."
-        if command -v termux-open >/dev/null 2>&1; then
-            confirmar_acao "Abrir o instalador do Android agora?" "s" && \
-                termux-open --view --content-type application/vnd.android.package-archive "$destino" >/dev/null 2>&1 || true
-        else
-            warn "Abra o APK manualmente pelo gerenciador de arquivos em Downloads."
-        fi
+        confirmar_acao "Abrir o instalador do Android agora?" "s" && linux_x11_abrir_instalador "$destino" || true
     else
         rm -f "$tmp"
         error "Falha ao baixar o APK do Termux:X11."
@@ -106,7 +171,7 @@ linux_status_x11() {
     cabecalho_tela "🖥️ Status Termux:X11" "Componentes necessários"
     caixa_simples "Termux:X11" \
         "Companion no Termux: $(linux_x11_companion_instalado && echo instalado || echo ausente)" \
-        "Aplicativo Android: $(linux_x11_apk_instalado && echo instalado || echo não detectado)" \
+        "Aplicativo Android: $(linux_x11_apk_status_texto)" \
         "Origem do Termux: $(termux_origem_resumida)" \
         "Android: $(linux_android_versao)"
     caixa_simples "Observação" \
@@ -299,8 +364,10 @@ DESKTOP_ID='$desktop'
 LAUNCHER='$launcher'
 if command -v apt-get >/dev/null 2>&1; then
   export DEBIAN_FRONTEND=noninteractive
+  printf "[Manager] Atualizando índices APT...\n"
   apt-get update
-  case \"\$DESKTOP_ID\" in
+  printf "[Manager] Instalando pacotes do desktop %s...\n" "\$DESKTOP_ID"
+  case "\$DESKTOP_ID" in
     xfce) apt-get install -y xfce4 xfce4-terminal dbus-x11 ;;
     lxqt) apt-get install -y lxqt qterminal dbus-x11 || apt-get install -y lxqt-core qterminal dbus-x11 ;;
     lxde) apt-get install -y lxde-core lxterminal dbus-x11 || apt-get install -y lxde lxterminal dbus-x11 ;;
@@ -312,7 +379,7 @@ if command -v apt-get >/dev/null 2>&1; then
   esac
 elif command -v pacman >/dev/null 2>&1; then
   pacman -Sy --noconfirm
-  case \"\$DESKTOP_ID\" in
+  case "\$DESKTOP_ID" in
     xfce) pacman -S --needed --noconfirm xfce4 xfce4-goodies dbus ;;
     lxqt) pacman -S --needed --noconfirm lxqt qterminal dbus ;;
     lxde) pacman -S --needed --noconfirm lxde lxterminal dbus ;;
@@ -324,7 +391,7 @@ elif command -v pacman >/dev/null 2>&1; then
   esac
 elif command -v apk >/dev/null 2>&1; then
   apk update
-  case \"\$DESKTOP_ID\" in
+  case "\$DESKTOP_ID" in
     xfce) apk add xfce4 xfce4-terminal dbus ;;
     lxqt) apk add lxqt-desktop qterminal dbus || apk add lxqt qterminal dbus ;;
     lxde) apk add lxde lxterminal dbus ;;
@@ -335,19 +402,19 @@ elif command -v apk >/dev/null 2>&1; then
     gnome) apk add gnome-shell gnome-session gnome-terminal dbus ;;
   esac
 elif command -v dnf >/dev/null 2>&1; then
-  case \"\$DESKTOP_ID\" in
-    xfce) dnf -y install @xfce-desktop-environment dbus-x11 || dnf -y group install \"Xfce Desktop\" || dnf -y install xfce4-session xfce4-panel xfce4-settings xfce4-terminal dbus-x11 ;;
-    lxqt) dnf -y group install \"LXQt Desktop\" || dnf -y install lxqt-session lxqt-panel pcmanfm-qt qterminal dbus-x11 ;;
-    lxde) dnf -y group install \"LXDE Desktop\" || dnf -y install lxde-common lxsession openbox lxterminal dbus-x11 ;;
-    mate) dnf -y group install \"MATE Desktop\" || dnf -y install mate-session-manager mate-panel mate-terminal dbus-x11 ;;
+  case "\$DESKTOP_ID" in
+    xfce) dnf -y install @xfce-desktop-environment dbus-x11 || dnf -y group install "Xfce Desktop" || dnf -y install xfce4-session xfce4-panel xfce4-settings xfce4-terminal dbus-x11 ;;
+    lxqt) dnf -y group install "LXQt Desktop" || dnf -y install lxqt-session lxqt-panel pcmanfm-qt qterminal dbus-x11 ;;
+    lxde) dnf -y group install "LXDE Desktop" || dnf -y install lxde-common lxsession openbox lxterminal dbus-x11 ;;
+    mate) dnf -y group install "MATE Desktop" || dnf -y install mate-session-manager mate-panel mate-terminal dbus-x11 ;;
     openbox) dnf -y install openbox tint2 xterm dbus-x11 ;;
     i3) dnf -y install i3 i3status dmenu xterm dbus-x11 ;;
-    kde) dnf -y group install \"KDE Plasma Workspaces\" || dnf -y install plasma-workspace plasma-desktop konsole dbus-x11 ;;
-    gnome) dnf -y group install \"GNOME Desktop Environment\" || dnf -y install gnome-session gnome-shell gnome-terminal dbus-x11 ;;
+    kde) dnf -y group install "KDE Plasma Workspaces" || dnf -y install plasma-workspace plasma-desktop konsole dbus-x11 ;;
+    gnome) dnf -y group install "GNOME Desktop Environment" || dnf -y install gnome-session gnome-shell gnome-terminal dbus-x11 ;;
   esac
 elif command -v zypper >/dev/null 2>&1; then
   zypper --non-interactive refresh
-  case \"\$DESKTOP_ID\" in
+  case "\$DESKTOP_ID" in
     xfce) zypper --non-interactive install -t pattern xfce || zypper --non-interactive install xfce4-session xfce4-panel xfce4-settings xfce4-terminal dbus-1-x11 ;;
     lxqt) zypper --non-interactive install -t pattern lxqt || zypper --non-interactive install lxqt-session lxqt-panel pcmanfm-qt qterminal dbus-1-x11 ;;
     lxde) zypper --non-interactive install -t pattern lxde || zypper --non-interactive install lxsession openbox lxterminal dbus-1-x11 ;;
@@ -358,10 +425,13 @@ elif command -v zypper >/dev/null 2>&1; then
     gnome) zypper --non-interactive install -t pattern gnome || zypper --non-interactive install gnome-session gnome-shell gnome-terminal dbus-1-x11 ;;
   esac
 else
-  echo \"Gerenciador de pacotes não reconhecido para instalação automática.\" >&2
+  echo "Gerenciador de pacotes não reconhecido para instalação automática." >&2
   exit 65
 fi
-command -v \"\$LAUNCHER\" >/dev/null 2>&1
+if ! command -v "\$LAUNCHER" >/dev/null 2>&1; then
+  printf "[Manager][ERRO] Inicializador ausente: %s\n" "\$LAUNCHER" >&2
+  exit 66
+fi
 EOF
 }
 
@@ -418,24 +488,31 @@ linux_instalar_desktop_na_distro() {
         "Gerenciador: $(linux_descrever_gerenciador_distro "$gerenciador")" \
         "O Manager validará '$launcher' ao terminar." \
         "Não feche o Termux durante esta etapa."
-    if proot-distro login "$alias" -- /bin/sh -lc "$guest_script" 2>&1 | tee -a "$LINUX_LOG"; then
+    # A linha de comando dentro da distribuição produz um status real; tee nunca
+    # deve esconder o erro do gerenciador de pacotes ou do proot-distro.
+    local rc=0
+    linux_log "iniciando instalação desktop=$desktop alias=$alias gerenciador=$gerenciador"
+    proot-distro login "$alias" -- /bin/sh -lc "$guest_script" 2>&1 | tee -a "$LINUX_LOG" || rc=${PIPESTATUS[0]}
+    if [ "$rc" -eq 0 ]; then
         if linux_desktop_instalado "$alias" "$desktop"; then
             linux_log "$nome instalado e validado em $alias via $gerenciador"
             ok "$nome instalado e validado em '$alias'."
             return 0
         fi
+        rc=66
         error "A instalação terminou, mas '$launcher' não foi encontrado."
-        linux_log "instalação $nome terminou sem $launcher em $alias via $gerenciador"
-        return 1
     fi
 
-    error "Não foi possível instalar $nome automaticamente."
-    caixa_simples "Compatibilidade" \
-        "Gerenciador detectado: $(linux_descrever_gerenciador_distro "$gerenciador")" \
-        "O pacote ou grupo pode ter outro nome nesta versão da distribuição." \
-        "Consulte o log para ver qual pacote não foi encontrado." \
-        "XFCE e LXQt são as opções com melhor cobertura automática."
-    linux_log "falha ao instalar $nome em $alias via $gerenciador"
+    linux_log "falha desktop=$desktop alias=$alias gerenciador=$gerenciador código=$rc"
+    error "Falha ao instalar $nome (código $rc)."
+    caixa_simples_wrap "Instalação não concluída" \
+        "Distribuição: $alias • Desktop: $nome" \
+        "Código de saída: $rc" \
+        "Confira a mensagem APT/DNF/etc. no log, antes de tentar reparar pacotes." \
+        "Log interno: $(caminho_curto "$LINUX_LOG")"
+    if confirmar_acao "Copiar log do Linux para Downloads agora?" "s"; then
+        linux_exportar_log_downloads || true
+    fi
     return 1
 }
 
@@ -503,10 +580,12 @@ linux_iniciar_desktop() {
         return 1
     fi
     if ! linux_x11_apk_instalado; then
-        warn "O aplicativo Android Termux:X11 não foi detectado."
-        caixa_simples "Como corrigir" "Abra Interface gráfica (X11) > Preparar Termux:X11 > Aplicativo Android."
-        pause
-        return 1
+        warn "Não foi possível confirmar o aplicativo Android por 'pm path'."
+        caixa_simples "Detecção limitada" \
+            "Em alguns Androids a consulta de pacotes pode falhar mesmo com o X11 instalado." \
+            "Confira Termux:X11 em Configurações > Aplicativos." \
+            "Se estiver instalado, você pode tentar abrir o desktop normalmente."
+        confirmar_acao "Tentar iniciar o desktop mesmo assim?" "s" || { pause; return 0; }
     fi
 
     if [ -n "$alias_preselecionado" ]; then
@@ -560,8 +639,19 @@ linux_iniciar_desktop() {
     pkill -f 'termux-x11 :1' 2>/dev/null || true
     XDG_RUNTIME_DIR="${TMPDIR:-$PREFIX/tmp}" termux-x11 :1 >/dev/null 2>&1 &
     sleep 1
-    command -v am >/dev/null 2>&1 && am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity >/dev/null 2>&1 || true
-    linux_log "sessão X11 iniciada para $LINUX_DISTRO_ALIAS desktop=$desktop"
+    if command -v am >/dev/null 2>&1; then
+        local abertura_android
+        if abertura_android="$(am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity 2>&1)"; then
+            if [[ "$abertura_android" == *"Error"* ]] || [[ "$abertura_android" == *"Exception"* ]]; then
+                linux_log "X11: falha ao abrir aplicativo Android: $abertura_android"
+                warn "O Android não confirmou a abertura do aplicativo X11."
+            fi
+        else
+            linux_log "X11: falha ao abrir aplicativo Android: $abertura_android"
+            warn "O Android não confirmou a abertura do aplicativo X11."
+        fi
+    fi
+    linux_log "sessão X11 solicitada para $LINUX_DISTRO_ALIAS desktop=$desktop"
 
     local session_cmd
     session_cmd="export DISPLAY=:1; export XDG_RUNTIME_DIR=/tmp; if command -v dbus-launch >/dev/null 2>&1; then exec dbus-launch --exit-with-session '$launcher'; else exec '$launcher'; fi"
@@ -600,6 +690,14 @@ linux_diagnostico_x11() {
         "O Android pode limitar CPU quando o Termux fica em segundo plano." \
         "Mantenha o Termux ativo quando possível e use um desktop leve." \
         "O APK sharedUid pode reduzir esse problema, mas só é compatível com builds específicas do Termux."
+    caixa_simples "APK não abre pelo Termux" \
+        "Instale pelo gerenciador de arquivos em Downloads." \
+        "O termux-open pode exigir allow-external-apps=true, opção de segurança." \
+        "O Manager não ativa esta permissão sozinho."
+    caixa_simples "Aplicativo instalado mas não detectado" \
+        "A consulta pm path pode falhar em algumas versões do Android." \
+        "Confira X11 em Configurações > Aplicativos e tente iniciar." \
+        "O Manager não deve bloquear a inicialização por essa consulta."
     caixa_simples "PRoot + X11" \
         "O Manager inicia a distribuição com --shared-tmp." \
         "DISPLAY usado: :1"
@@ -612,7 +710,7 @@ linux_menu_preparar_x11() {
     while true; do
         companion="pendente"; app="pendente"
         linux_x11_companion_instalado && companion="pronto"
-        linux_x11_apk_instalado && app="pronto"
+        app="$(linux_x11_apk_status_texto)"
         menu_unificado "⚙️ PREPARAR TERMUX:X11" "Duas instalações necessárias (uma única vez)" \
             "[0] Voltar  •  [1–3] Selecionar" \
             "1|📦|1. Componentes do Termux|Companion: $companion" \
@@ -634,11 +732,12 @@ linux_menu_suporte_x11() {
     local escolha
     while true; do
         menu_unificado "🩺 SUPORTE TERMUX:X11" "Solução de problemas e documentação" \
-            "[0] Voltar  •  [1–4] Selecionar" \
+            "[0] Voltar  •  [1–5] Selecionar" \
             "1|📋|Status do X11|Aplicativo e companion" \
             "2|⏹️|Parar sessão gráfica|Encerrar o servidor X11" \
             "3|🩺|Diagnóstico X11|Tela preta, cores e lentidão" \
-            "4|🌐|Repositório oficial|GitHub termux/termux-x11"
+            "4|🌐|Repositório oficial|GitHub termux/termux-x11" \
+            "5|📥|Copiar log para Downloads|Salvar o log Linux em .log"
         ler_opcao
         escolha="$RESPOSTA_MENU"
         case "$escolha" in
@@ -653,6 +752,7 @@ linux_menu_suporte_x11() {
                     pause
                 fi
                 ;;
+            5) linux_exportar_log_downloads || true; pause ;;
             0) return 0 ;;
             *) feedback_curto "Opção inválida." ;;
         esac
