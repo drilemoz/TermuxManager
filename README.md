@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.113  
+**Versão atual:** 1.0.114  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -29,19 +29,25 @@ Ao executar frontend + backend juntos, o Manager usa um painel único com quatro
 
 
 
+### Verificação do Termux:X11 e teste de abertura no Android (1.0.114)
+
+Em **Linux no celular > Interface gráfica (X11) > Preparar Termux:X11**, o Manager usa consultas alternativas do Android (`pm path`, `cmd package path` e `pm list packages`). Se o Android restringir as consultas, o estado continua **não confirmado**, sem supor que o APK esteja desinstalado. A opção **Testar abertura do app** usa a Activity oficial do Termux:X11 com `am start`, sem reinstalar APK, pedir root ou habilitar `allow-external-apps`. Também está disponível em **Status e problemas > Testar abertura do X11**. A confirmação permanece somente durante a sessão atual do Manager.
+
+Em **Verificar instalação**, os resultados das consultas são registrados no log Linux; falhas de abertura incluem o código de retorno e mensagem útil. Exporte por **Status e problemas > Copiar log para Downloads** se precisar compartilhar um diagnóstico. O sucesso do teste confirma que o Android aceitou a solicitação de abertura do aplicativo, não que XFCE/Ubuntu estejam funcionando; isso deve ser testado separadamente em **Abrir desktop**.
+
 ### Corrigida a instalação e detecção do APK Termux:X11 (1.0.113)
 
 O APK Android pode estar instalado mesmo se `pm path com.termux.x11` não conseguir consultá-lo. A detecção agora é não conclusiva e não impede tentar abrir o desktop. O gerenciador reutiliza APK existente em Downloads, separa a instalação Android da do companion e explica quando `termux-open` foi bloqueado pelo `TermuxContentProvider`.
 
 Instale o APK pelo aplicativo Arquivos do Android em Downloads para evitar alterar a configuração de segurança do Termux. A opção `allow-external-apps=true` em `~/.termux/termux.properties` permite `termux-open`, mas também amplia as capacidades de integração com aplicativos externos; o Manager não a habilita automaticamente. Após uma alteração manual, execute `termux-reload-settings`.
 
-### Correção da instalação de desktops e exportação de logs (1.0.113)
+### Correção da instalação de desktops e exportação de logs (1.0.112)
 
 Corrigida a geração das instruções de instalação de todos os desktops Linux suportados (XFCE, LXQt, LXDE, MATE, Openbox, i3, KDE e GNOME): aspas indevidamente escapadas faziam o gerenciador atualizar os repositórios sem executar a instalação do ambiente escolhido. O Manager preserva o código de falha do instalador e oferece **copiar o log para Downloads** em caso de erro.
 
 O recurso também está em **Linux no celular > Ajuda e diagnóstico > Copiar log para Downloads** e **Interface gráfica (X11) > Suporte > Copiar log para Downloads**. Gera `termux-manager-linux-AAAAmmdd-HHMMSS-PID.log`, contendo o log Linux completo com códigos ANSI removidos e segredos comuns ocultados, sem alterar o log interno. O arquivo fica em armazenamento compartilhado: confira seu conteúdo antes de enviar.
 
-### Linux com navegação por tarefas (1.0.113)
+### Linux com navegação por tarefas (1.0.111)
 
 Em **Linux no celular**, agora são cinco opções: **Meus Linux** (abrir terminal, desktop ou atualizar sistema), **Instalar Linux**, **Interface gráfica (X11)**, **Backup e restauração** e **Ajuda e diagnóstico**. Os recursos de manutenção de uma distro (backup, informações, diagnósticos, sessões, reparação e remoção) ficam em **Meus Linux > [distribuição] > Manutenção e detalhes**.
 
@@ -445,10 +451,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.113
-Tag: v1.0.113
-Release: Manager 1.0.113
-Pacote único: TermuxManager-v1.0.113.zip
+Versão: 1.0.114
+Tag: v1.0.114
+Release: Manager 1.0.114
+Pacote único: TermuxManager-v1.0.114.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

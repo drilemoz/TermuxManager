@@ -13,22 +13,144 @@ linux_x11_android_compativel() {
     [ "$major" -ge 8 ]
 }
 
+# Resultado de um teste de abertura bem-sucedido vale nesta execução do Manager.
+# Não é gravado em arquivo: estado do Android pode mudar entre sessões.
+LINUX_X11_ABERTURA_ESTADO=""
+LINUX_X11_ABERTURA_ERRO=""
+LINUX_X11_DETECCAO_METODO=""
+
+linux_x11_resumir_retorno_android() {
+    # Restringe a quantidade de texto do Android salva no log local.
+    printf '%s' "$1" | tr '\r\n' '  ' | cut -c1-300
+}
+
+# Não confundir consulta indisponível com aplicativo desinstalado.
+# As três consultas podem ser bloqueadas por políticas do Android; nenhuma
+# exige root ou a permissão allow-external-apps.
+linux_x11_consultar_apk_android() {
+    local saida rc
+    LINUX_X11_DETECCAO_METODO=""
+    if command -v pm >/dev/null 2>&1; then
+        if saida="$(pm path com.termux.x11 2>&1)"; then rc=0; else rc=$?; fi
+        if [ "$rc" -eq 0 ] && grep -q '^package:' <<< "$saida"; then
+            LINUX_X11_DETECCAO_METODO="pm path"
+            return 0
+        fi
+    fi
+    if command -v cmd >/dev/null 2>&1; then
+        if saida="$(cmd package path com.termux.x11 2>&1)"; then rc=0; else rc=$?; fi
+        if [ "$rc" -eq 0 ] && grep -q '^package:' <<< "$saida"; then
+            LINUX_X11_DETECCAO_METODO="cmd package path"
+            return 0
+        fi
+    fi
+    if command -v pm >/dev/null 2>&1; then
+        if saida="$(pm list packages --user 0 com.termux.x11 2>&1)"; then rc=0; else rc=$?; fi
+        if [ "$rc" -eq 0 ] && grep -qx 'package:com.termux.x11' <<< "$saida"; then
+            LINUX_X11_DETECCAO_METODO="pm list packages"
+            return 0
+        fi
+    fi
+    return 1
+}
+
 linux_x11_apk_instalado() {
-    command -v pm >/dev/null 2>&1 && pm path com.termux.x11 2>/dev/null | grep -q '^package:'
+    [ "${LINUX_X11_ABERTURA_ESTADO:-}" = "confirmada" ] && return 0
+    linux_x11_consultar_apk_android
 }
 
 linux_x11_companion_instalado() {
     command -v termux-x11 >/dev/null 2>&1
 }
 
-# O Android pode ocultar pacotes de uma consulta feita pelo shell do Termux.
-# Falha em `pm path` não comprova que o APK esteja desinstalado.
 linux_x11_apk_status_texto() {
-    if linux_x11_apk_instalado; then
+    if [ "${LINUX_X11_ABERTURA_ESTADO:-}" = "confirmada" ]; then
+        printf 'abertura confirmada no Android'
+    elif linux_x11_consultar_apk_android; then
         printf 'detectado no Android'
+    elif [ "${LINUX_X11_ABERTURA_ESTADO:-}" = "falhou" ]; then
+        printf 'não confirmado; abertura falhou (ver log)'
     else
         printf 'não confirmado (pode estar instalado)'
     fi
+}
+
+# Apenas uma ação iniciada pelo usuário executa este teste real.
+# am start é documentado pelo projeto Termux:X11. Aceitar somente retorno
+# zero SEM mensagens explícitas de falha (alguns Androids retornam status 0
+# apesar de exibirem "Error type 3" ou "Permission Denial").
+linux_x11_testar_abertura_android() {
+    local saida rc resumo
+    if ! command -v am >/dev/null 2>&1; then
+        LINUX_X11_ABERTURA_ESTADO="falhou"
+        LINUX_X11_ABERTURA_ERRO="comando Android am não encontrado"
+        linux_log "X11: não foi possível testar abertura: comando am ausente"
+        return 1
+    fi
+    if saida="$(am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity 2>&1)"; then rc=0; else rc=$?; fi
+    resumo="$(linux_x11_resumir_retorno_android "$saida")"
+    if [ "$rc" -ne 0 ] || grep -Eiq '(Error:|Error type|Exception|Permission Denial|SecurityException|does not exist|not found|unable to resolve|unable to start)' <<< "$saida"; then
+        LINUX_X11_ABERTURA_ESTADO="falhou"
+        LINUX_X11_ABERTURA_ERRO="${resumo:-falha sem detalhes}"
+        linux_log "X11: abertura Android FALHOU (status=$rc): $LINUX_X11_ABERTURA_ERRO"
+        return 1
+    fi
+    LINUX_X11_ABERTURA_ESTADO="confirmada"
+    LINUX_X11_ABERTURA_ERRO=""
+    linux_log "X11: abertura Android confirmada por am start (status=$rc): $resumo"
+    return 0
+}
+
+linux_x11_testar_abertura_menu() {
+    cabecalho_tela "📲 Testar Termux:X11" "Abertura do aplicativo Android"
+    caixa_simples "Teste prático" \
+        "O Android tentará abrir o aplicativo Termux:X11." \
+        "Este teste não reinstala o APK nem altera permissões." \
+        "A abertura do aplicativo não garante que o desktop Linux esteja pronto."
+    confirmar_acao "Abrir agora o aplicativo Termux:X11?" "s" || return 0
+    if linux_x11_testar_abertura_android; then
+        ok "Android aceitou o comando de abertura do Termux:X11."
+        caixa_simples "Abertura solicitada" \
+            "Se o aplicativo apareceu, o APK está instalado." \
+            "Para mostrar o XFCE, abra Linux > Interface gráfica > Abrir desktop."
+    else
+        warn "O Android não conseguiu abrir o X11 automaticamente."
+        caixa_simples "Falha no teste" \
+            "Mensagem: ${LINUX_X11_ABERTURA_ERRO:-indisponível}" \
+            "Isso não comprova que o APK esteja desinstalado." \
+            "Confira o aplicativo na lista do Android e exporte o log em Suporte."
+    fi
+    pause
+}
+
+# Diagnóstico sob demanda, sem escrever logs a cada redesenho do menu.
+linux_x11_registrar_consultas_android() {
+    local saida rc metodo
+    for metodo in 'pm path' 'cmd package path' 'pm list packages'; do
+        case "$metodo" in
+            'pm path')
+                if ! command -v pm >/dev/null 2>&1; then
+                    linux_log 'X11: pm path: comando indisponível'; continue
+                fi
+                if saida="$(pm path com.termux.x11 2>&1)"; then rc=0; else rc=$?; fi ;;
+            'cmd package path')
+                if ! command -v cmd >/dev/null 2>&1; then
+                    linux_log 'X11: cmd package path: comando indisponível'; continue
+                fi
+                if saida="$(cmd package path com.termux.x11 2>&1)"; then rc=0; else rc=$?; fi ;;
+            'pm list packages')
+                if ! command -v pm >/dev/null 2>&1; then
+                    linux_log 'X11: pm list packages: comando indisponível'; continue
+                fi
+                if saida="$(pm list packages --user 0 com.termux.x11 2>&1)"; then rc=0; else rc=$?; fi ;;
+        esac
+        # Não registrar caminhos privados /data/app; basta informar sucesso.
+        if [ "$rc" -eq 0 ] && { grep -q '^package:' <<< "$saida"; }; then
+            linux_log "X11: $metodo: pacote encontrado (status=0)"
+        else
+            linux_log "X11: $metodo: sem confirmação (status=$rc); $(linux_x11_resumir_retorno_android "$saida")"
+        fi
+    done
 }
 
 # Termux v0.118+ exige consentimento explícito para compartilhar arquivos
@@ -168,10 +290,13 @@ linux_baixar_x11_apk() {
 
 linux_status_x11() {
     detectar_variante_termux 2>/dev/null || true
+    linux_x11_registrar_consultas_android
     cabecalho_tela "🖥️ Status Termux:X11" "Componentes necessários"
     caixa_simples "Termux:X11" \
         "Companion no Termux: $(linux_x11_companion_instalado && echo instalado || echo ausente)" \
         "Aplicativo Android: $(linux_x11_apk_status_texto)" \
+        "Consulta bloqueada NÃO significa APK ausente." \
+        "Use Preparar X11 > Testar abertura do app." \
         "Origem do Termux: $(termux_origem_resumida)" \
         "Android: $(linux_android_versao)"
     caixa_simples "Observação" \
@@ -580,9 +705,9 @@ linux_iniciar_desktop() {
         return 1
     fi
     if ! linux_x11_apk_instalado; then
-        warn "Não foi possível confirmar o aplicativo Android por 'pm path'."
+        warn "As consultas do Android não confirmaram o aplicativo X11."
         caixa_simples "Detecção limitada" \
-            "Em alguns Androids a consulta de pacotes pode falhar mesmo com o X11 instalado." \
+            "As consultas pm/cmd podem falhar com o X11 instalado." \
             "Confira Termux:X11 em Configurações > Aplicativos." \
             "Se estiver instalado, você pode tentar abrir o desktop normalmente."
         confirmar_acao "Tentar iniciar o desktop mesmo assim?" "s" || { pause; return 0; }
@@ -639,17 +764,13 @@ linux_iniciar_desktop() {
     pkill -f 'termux-x11 :1' 2>/dev/null || true
     XDG_RUNTIME_DIR="${TMPDIR:-$PREFIX/tmp}" termux-x11 :1 >/dev/null 2>&1 &
     sleep 1
-    if command -v am >/dev/null 2>&1; then
-        local abertura_android
-        if abertura_android="$(am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity 2>&1)"; then
-            if [[ "$abertura_android" == *"Error"* ]] || [[ "$abertura_android" == *"Exception"* ]]; then
-                linux_log "X11: falha ao abrir aplicativo Android: $abertura_android"
-                warn "O Android não confirmou a abertura do aplicativo X11."
-            fi
-        else
-            linux_log "X11: falha ao abrir aplicativo Android: $abertura_android"
-            warn "O Android não confirmou a abertura do aplicativo X11."
-        fi
+    if ! linux_x11_testar_abertura_android; then
+        warn "Não foi possível abrir o aplicativo X11 pelo Termux."
+        caixa_simples "Abertura do Android" \
+            "Erro: ${LINUX_X11_ABERTURA_ERRO:-indisponível}" \
+            "O companion continuará tentando iniciar o desktop." \
+            "Se o APK já está instalado, abra-o pelo ícone do Android." \
+            "O erro completo está no log Linux."
     fi
     linux_log "sessão X11 solicitada para $LINUX_DISTRO_ALIAS desktop=$desktop"
 
@@ -695,7 +816,9 @@ linux_diagnostico_x11() {
         "O termux-open pode exigir allow-external-apps=true, opção de segurança." \
         "O Manager não ativa esta permissão sozinho."
     caixa_simples "Aplicativo instalado mas não detectado" \
-        "A consulta pm path pode falhar em algumas versões do Android." \
+        "As consultas pm/cmd podem falhar em algumas versões do Android." \
+        "Teste a abertura pelo menu Preparar X11 > Testar app." \
+        "O diagnóstico registra o motivo no log Linux." \
         "Confira X11 em Configurações > Aplicativos e tente iniciar." \
         "O Manager não deve bloquear a inicialização por essa consulta."
     caixa_simples "PRoot + X11" \
@@ -712,16 +835,18 @@ linux_menu_preparar_x11() {
         linux_x11_companion_instalado && companion="pronto"
         app="$(linux_x11_apk_status_texto)"
         menu_unificado "⚙️ PREPARAR TERMUX:X11" "Duas instalações necessárias (uma única vez)" \
-            "[0] Voltar  •  [1–3] Selecionar" \
-            "1|📦|1. Componentes do Termux|Companion: $companion" \
-            "2|📲|2. Aplicativo Android (APK)|Aplicativo: $app" \
-            "3|📋|Verificar instalação|Conferir os dois componentes"
+            "[0] Voltar  •  [1–4] Selecionar" \
+            "1|📦|Componentes do Termux|Companion: $companion" \
+            "2|📲|Aplicativo Android (APK)|Aplicativo: $app" \
+            "3|📋|Verificar instalação|Conferir os dois componentes" \
+            "4|▶️|Testar abertura do app|Abrir o X11 sem instalar novamente"
         ler_opcao
         escolha="$RESPOSTA_MENU"
         case "$escolha" in
             1) linux_instalar_x11_companion ;;
             2) linux_baixar_x11_apk ;;
             3) linux_status_x11 ;;
+            4) linux_x11_testar_abertura_menu ;;
             0) return 0 ;;
             *) feedback_curto "Opção inválida." ;;
         esac
@@ -732,12 +857,13 @@ linux_menu_suporte_x11() {
     local escolha
     while true; do
         menu_unificado "🩺 SUPORTE TERMUX:X11" "Solução de problemas e documentação" \
-            "[0] Voltar  •  [1–5] Selecionar" \
+            "[0] Voltar  •  [1–6] Selecionar" \
             "1|📋|Status do X11|Aplicativo e companion" \
             "2|⏹️|Parar sessão gráfica|Encerrar o servidor X11" \
             "3|🩺|Diagnóstico X11|Tela preta, cores e lentidão" \
             "4|🌐|Repositório oficial|GitHub termux/termux-x11" \
-            "5|📥|Copiar log para Downloads|Salvar o log Linux em .log"
+            "5|📥|Copiar log para Downloads|Salvar o log Linux em .log" \
+            "6|▶️|Testar abertura do X11|Verificar atividade do aplicativo Android"
         ler_opcao
         escolha="$RESPOSTA_MENU"
         case "$escolha" in
@@ -753,6 +879,7 @@ linux_menu_suporte_x11() {
                 fi
                 ;;
             5) linux_exportar_log_downloads || true; pause ;;
+            6) linux_x11_testar_abertura_menu ;;
             0) return 0 ;;
             *) feedback_curto "Opção inválida." ;;
         esac

@@ -88,7 +88,7 @@ ajuda_estrutura() {
         "linux_distros.sh — instalação e manutenção das distribuições" \
         "linux_backup.sh — backup, restauração e sessões" \
         "linux_diagnostics.sh — diagnóstico do PRoot e das distros" \
-        "linux_x11.sh — Termux:X11 e ambientes gráficos" \
+        "linux_x11.sh — Termux:X11, detecção e teste de abertura no Android" \
         "linux_ui.sh — menus do subsistema Linux" \
         "updater.sh — atualização, backup e reinício" \
         "settings.sh — preferências gerais e carregador de configurações" \
@@ -113,7 +113,7 @@ ajuda_estrutura() {
 
 ajuda_menus() {
     cabecalho_tela "📋 Funções do menu" "Acesso direto às funções principais"
-    caixa_simples "Menu principal"         "Gerenciar projetos: abrir, testar e organizar."         "Em execução: processos ativos, portas, logs e parada."         "Importar projeto: pasta, arquivos ou ZIP de Downloads."         "Linux no celular: PRoot, distribuições, Termux:X11 e ambientes gráficos."         "Ambiente e ferramentas: pacotes, Termux e diagnóstico."         "Atualizar Manager: GitHub main, ZIP local ou módulo."         "Configurações: aparência, caminhos, execução e manutenção."         "Ajuda e Sobre: manual, versão, changelog e desenvolvedor."
+    caixa_simples "Menu principal"         "Gerenciar projetos: abrir, testar e organizar."         "Em execução: processos ativos, portas, logs e parada."         "Importar projeto: pasta, arquivos ou ZIP de Downloads."         "Linux no celular: PRoot, distribuições e X11 (com teste de abertura do app)."         "Ambiente e ferramentas: pacotes, Termux e diagnóstico."         "Atualizar Manager: GitHub main, ZIP local ou módulo."         "Configurações: aparência, caminhos, execução e manutenção."         "Ajuda e Sobre: manual, versão, changelog e desenvolvedor."
     pause
 }
 

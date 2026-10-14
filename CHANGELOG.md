@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.114] - 2026-10-14
+
+- **Verificação do APK X11:** múltiplas consultas independentes (`pm path`, `cmd package path` e `pm list packages`); falha de consulta continua sendo inconclusiva, sem sugerir reinstalação.
+- **Teste de abertura do Android:** opção explícita nos menus Preparar e Suporte X11, usando `am start` oficial e capturando erros mesmo se o comando retornar código zero. Estado confirmado somente na sessão atual; não garante que o desktop Linux iniciou.
+- **Diagnóstico:** resultado das consultas e falhas da Activity Android registrados no log Linux exportável para Downloads, evitando salvar caminhos privados do APK.
+- **Interface:** removida numeração duplicada das opções Componentes e APK; estados do X11 mais claros.
+- **Segurança:** não altera `allow-external-apps`, não reinstala automaticamente, mantém o APK existente e não exige root.
+- **Validação:** testes de regressão Android simulados; execução real em aparelho permanece pendente.
+
 ## [1.0.113] - 2026-10-14
 
 - **X11, APK Android:** quando o APK já está em Downloads, permite reutilizá-lo sem download repetido; quando o pacote é identificado no Android, explica que não precisa reinstalar.
