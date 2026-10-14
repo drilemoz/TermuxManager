@@ -3,6 +3,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/modules/linux_ui.sh"
 source "$ROOT_DIR/modules/linux_x11.sh"
+linux_menu_configuracoes_distro() { registrar "config:$1"; }
+linux_menu_pacotes_distro() { registrar "pacotes:$1"; }
 
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
@@ -87,16 +89,22 @@ grep -q 'AJUDA DO LINUX' "$MENU_TEXT"
 grep -q 'Status dos componentes' "$MENU_TEXT"
 
 # A distro exibe quatro ações; opções de risco exigem entrar na manutenção.
-cenario 4 1 0 0
+cenario 6 1 0 0
 menu_linux_distro debian
 [ "$(cat "$EVENTS")" = 'backup:debian' ]
 grep -q 'Manutenção e detalhes' "$MENU_TEXT"
 grep -q 'Criar backup' "$MENU_TEXT"
 [ "$MENU_INDEX" -eq 4 ]
 
-cenario 2 0
+cenario 4 0
 menu_linux_distro debian
 [ "$(cat "$EVENTS")" = 'desktop:debian' ]
+cenario 2 0
+menu_linux_distro debian
+[ "$(cat "$EVENTS")" = 'pacotes:debian' ]
+cenario 3 0
+menu_linux_distro debian
+[ "$(cat "$EVENTS")" = 'config:debian' ]
 
 # X11: fluxo separado, sem confundir instalar companion com baixar APK.
 cenario 1 1 2 0 0

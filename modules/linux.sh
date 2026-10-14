@@ -13,6 +13,9 @@ LINUX_MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 for _linux_submodule in \
     linux_core.sh \
     linux_diagnostics.sh \
+    linux_logs.sh \
+    linux_admin.sh \
+    linux_packages.sh \
     linux_distros.sh \
     linux_backup.sh \
     linux_x11.sh \

@@ -853,7 +853,7 @@ linux_x11_orientar_sigkill() {
 # sem conseguir executar esta função até o fim.
 linux_x11_executar_sessao_proot() {
     local alias="$1" comando="$2" rc=0
-    if proot-distro login "$alias" --shared-tmp -- /bin/sh -lc "$comando" 2>&1 | tee -a "$LINUX_LOG"; then
+    if proot-distro login "$alias" --shared-tmp -- /bin/sh -lc "$comando" 2>&1 | tee -a "$LINUX_LOG" ${LINUX_LOGS_SESSAO_ATUAL:+"$LINUX_LOGS_SESSAO_ATUAL"}; then
         rc=0
     else
         rc=${PIPESTATUS[0]}
@@ -936,6 +936,7 @@ linux_iniciar_desktop() {
         warn 'Não foi possível salvar o estado da sessão X11.'
         return 1
     }
+    linux_logs_nova_sessao "$LINUX_DISTRO_ALIAS" "$desktop" || linux_log "X11: não foi possível iniciar histórico privado de sessão"
     local x11_server_log="$LINUX_STATE_DIR/x11-server.log"
     if [ -L "$x11_server_log" ]; then
         warn 'O caminho de log do X11 é um link simbólico, operação recusada.'
@@ -963,6 +964,7 @@ linux_iniciar_desktop() {
     linux_log "X11: iniciando sessão guest distro=$LINUX_DISTRO_ALIAS desktop=$desktop"
     linux_x11_executar_sessao_proot "$LINUX_DISTRO_ALIAS" "$session_cmd" || rc=$?
     rm -f -- "$(linux_x11_marcador_sessao)"
+    linux_logs_encerrar_sessao "$rc"
     if [ "$rc" -ne 0 ]; then
         error "A sessão gráfica terminou com erro (status=$rc)."
         if [ "$rc" -eq 137 ]; then

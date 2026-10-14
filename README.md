@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.117  
+**Versão atual:** 1.0.120  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -28,6 +28,33 @@ O Manager usa o **nome da pasta** como identidade padrão do projeto. O campo `n
 Ao executar frontend + backend juntos, o Manager usa um painel único com quatro etapas (Backend, Frontend, Inicialização e Disponibilidade). Status, avisos, PID, logs e detecção de servidor permanecem dentro da moldura visual durante a execução. Quando uma etapa falha, o painel é encerrado corretamente e o Manager oferece **Coletar logs do teste**, gerando em Downloads um único TXT sanitizado com logs de backend, frontend, Manager e metadados de processo.
 
 
+
+### Central de programas e gerenciamento de pacotes (1.0.120)
+
+- Menu Programas e pacotes em cada distro, sem necessidade do X11.
+- Catálogo por oito categorias: desenvolvimento, editores, rede, monitoramento, arquivos, sessões, utilitários e web.
+- Busca, informações, prévia e instalação, remoção, listagem de pacotes e atualização do sistema.
+- Gerenciadores suportados: APT, Pacman, APK/Alpine, DNF e Zypper, com verificação do nome antes de interpolar qualquer pacote.
+- APT executa simulação antes da confirmação; outros gerenciadores oferecem dados do pacote, não uma simulação de dependências.
+- Resultado do comando e falhas do PRoot são exibidos e registrados; nomes do catálogo dependem da distribuição.
+
+### Configuração do Linux pelo terminal (1.0.119)
+
+- Configuração do idioma UTF-8 no Debian/Ubuntu: pt_BR, en_US e es_ES; outras distribuições recebem aviso de compatibilidade.
+- Fuso horário (Brasília, UTC, Lisboa ou Buenos Aires), criação de usuário não-root e escolha do shell instalado.
+- Diagnóstico DNS/rede, espaço, limpeza de cache por gerenciador de pacotes e painel de processos.
+- Assistente SSH opcional: instalação, diagnóstico e execução em 127.0.0.1:8022, com login por chave e senhas/root desabilitados.
+- Servidor HTTP local de teste em 127.0.0.1:8000, sem criar serviço residente nem exigir systemd.
+- Comandos interpolam apenas opções predefinidas ou identificadores validados; operações são confirmadas antes de executar.
+
+### Logs inteligentes e diagnóstico de sessões (1.0.118)
+
+- Histórico privado por sessão Linux (inclui terminal e desktop), com limite configurável e limpeza explícita.
+- Exportação opcional para Downloads: somente manual, após falha ou ao encerrar qualquer sessão.
+- Detecção de sessão X11 interrompida na próxima abertura do menu e preservação do log para análise.
+- Captura opcional do arquivo de log do desktop dentro do Ubuntu (LXDE, XFCE, LXQt e MATE), sem processo residente.
+- Sanitização existente preservada; exportação inclui o log capturado do desktop. Logs centrais grandes são rotacionados ao começar uma nova sessão.
+- Não promete exportação no instante de SIGKILL: nesse caso, tenta ao reabrir o menu, se a preferência permitir.
 
 ### Diagnóstico de signal 9 no Termux:X11 (1.0.117)
 
@@ -470,10 +497,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.117
-Tag: v1.0.117
-Release: Manager 1.0.117
-Pacote único: TermuxManager-v1.0.117.zip
+Versão: 1.0.120
+Tag: v1.0.120
+Release: Manager 1.0.120
+Pacote único: TermuxManager-v1.0.120.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

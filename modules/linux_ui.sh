@@ -43,18 +43,22 @@ menu_linux_distro() {
         linux_coletar_info_distro "$alias" false
         menu_unificado "🐧 $LINUX_INFO_NAME" \
             "${LINUX_INFO_STATE_ICON} ${LINUX_INFO_STATE_LABEL} • ${LINUX_INFO_HEALTH_ICON} ${LINUX_INFO_HEALTH_LABEL}" \
-            "[0] Minhas distribuições  •  [1–4] Selecionar" \
+            "[0] Minhas distribuições  •  [1–6] Selecionar" \
             "1|⌨️|Abrir terminal|Usar comandos dentro deste Linux" \
-            "2|🖥️|Abrir área de trabalho|Interface gráfica via Termux:X11" \
-            "3|🔄|Atualizar sistema|Atualizar pacotes desta distribuição" \
-            "4|🔧|Manutenção e detalhes|Backup, diagnóstico, sessões e remoção"
+            "2|📦|Programas e pacotes|Pesquisar, instalar ou remover programas" \
+            "3|⚙️|Configurar Linux|Idioma, usuários, rede e SSH" \
+            "4|🖥️|Abrir área de trabalho|Interface gráfica via Termux:X11" \
+            "5|🔄|Atualizar sistema|Atualizar pacotes desta distribuição" \
+            "6|🔧|Manutenção e detalhes|Backup, diagnóstico, sessões e remoção"
         ler_opcao
         escolha="$RESPOSTA_MENU"
         case "$escolha" in
             1) linux_abrir_terminal_distro "$alias" ;;
-            2) linux_iniciar_desktop "$alias" ;;
-            3) linux_atualizar_distro "$alias" ;;
-            4)
+            2) linux_menu_pacotes_distro "$alias" ;;
+            3) linux_menu_configuracoes_distro "$alias" ;;
+            4) linux_iniciar_desktop "$alias" ;;
+            5) linux_atualizar_distro "$alias" ;;
+            6)
                 resultado=0
                 linux_menu_manutencao_distro "$alias" || resultado=$?
                 [ "$resultado" -eq 10 ] && return 0
@@ -141,13 +145,14 @@ linux_menu_ajuda_diagnostico() {
     local escolha perfil status_proot status_x11 instaladas
     while true; do
         menu_unificado "🩺 AJUDA DO LINUX" "Requisitos, estado e problemas comuns" \
-            "[0] Voltar  •  [1–6] Selecionar" \
+            "[0] Voltar  •  [1–7] Selecionar" \
             "1|📱|Compatibilidade|Memória, CPU e espaço no aparelho" \
             "2|🩺|Ambiente PRoot|Diagnosticar e reparar" \
             "3|ℹ️|Status dos componentes|PRoot, X11 e distribuições" \
             "4|❓|Entenda Linux e X11|Diferença entre terminal e desktop" \
             "5|📥|Copiar log para Downloads|Salvar diagnóstico da instalação em .log" \
-            "6|🔐|Permissões de APK|Configurar acesso ao instalador do Android"
+            "6|🔐|Permissões de APK|Configurar acesso ao instalador do Android" \
+            "7|📋|Logs inteligentes|Exportação automática, histórico e limpeza"
         ler_opcao
         escolha="$RESPOSTA_MENU"
         case "$escolha" in
@@ -185,6 +190,7 @@ linux_menu_ajuda_diagnostico() {
                 pause
                 ;;
             5) linux_exportar_log_downloads || true; pause ;;
+            7) linux_logs_menu ;;
             6) linux_menu_permissoes_apk ;;
             0) return 0 ;;
             *) feedback_curto "Opção inválida." ;;
@@ -194,6 +200,7 @@ linux_menu_ajuda_diagnostico() {
 
 menu_linux_celular() {
     local escolha instaladas
+    if declare -F linux_logs_verificar_interrupcao >/dev/null 2>&1; then linux_logs_verificar_interrupcao || true; fi
     while true; do
         instaladas=0
         if command -v proot-distro >/dev/null 2>&1; then

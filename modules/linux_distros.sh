@@ -381,7 +381,11 @@ linux_abrir_terminal_distro() {
     ui_buffer_flush 2>/dev/null || true
     sleep 0.3
     linux_log "iniciando terminal: $LINUX_DISTRO_ALIAS"
-    if ! proot-distro login "$LINUX_DISTRO_ALIAS"; then
+    linux_logs_nova_sessao "$LINUX_DISTRO_ALIAS" terminal || true
+    local terminal_rc=0
+    proot-distro login "$LINUX_DISTRO_ALIAS" || terminal_rc=$?
+    linux_logs_encerrar_sessao "$terminal_rc"
+    if [ "$terminal_rc" -ne 0 ]; then
         linux_invalidar_cache_distro "$LINUX_DISTRO_ALIAS"
         error "Não foi possível iniciar '$LINUX_DISTRO_ALIAS'."
         pause

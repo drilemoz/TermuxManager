@@ -1,3 +1,36 @@
+## v1.0.120 (2026-10-14)
+
+**Central de programas e gerenciamento de pacotes.**
+
+- Menu Programas e pacotes em cada distro, sem necessidade do X11.
+- Catálogo por oito categorias: desenvolvimento, editores, rede, monitoramento, arquivos, sessões, utilitários e web.
+- Busca, informações, prévia e instalação, remoção, listagem de pacotes e atualização do sistema.
+- Gerenciadores suportados: APT, Pacman, APK/Alpine, DNF e Zypper, com verificação do nome antes de interpolar qualquer pacote.
+- APT executa simulação antes da confirmação; outros gerenciadores oferecem dados do pacote, não uma simulação de dependências.
+- Resultado do comando e falhas do PRoot são exibidos e registrados; nomes do catálogo dependem da distribuição.
+
+## v1.0.119 (2026-10-14)
+
+**Configuração do Linux pelo terminal.**
+
+- Configuração do idioma UTF-8 no Debian/Ubuntu: pt_BR, en_US e es_ES; outras distribuições recebem aviso de compatibilidade.
+- Fuso horário (Brasília, UTC, Lisboa ou Buenos Aires), criação de usuário não-root e escolha do shell instalado.
+- Diagnóstico DNS/rede, espaço, limpeza de cache por gerenciador de pacotes e painel de processos.
+- Assistente SSH opcional: instalação, diagnóstico e execução em 127.0.0.1:8022, com login por chave e senhas/root desabilitados.
+- Servidor HTTP local de teste em 127.0.0.1:8000, sem criar serviço residente nem exigir systemd.
+- Comandos interpolam apenas opções predefinidas ou identificadores validados; operações são confirmadas antes de executar.
+
+## v1.0.118 (2026-10-14)
+
+**Logs inteligentes e diagnóstico de sessões.**
+
+- Histórico privado por sessão Linux (inclui terminal e desktop), com limite configurável e limpeza explícita.
+- Exportação opcional para Downloads: somente manual, após falha ou ao encerrar qualquer sessão.
+- Detecção de sessão X11 interrompida na próxima abertura do menu e preservação do log para análise.
+- Captura opcional do arquivo de log do desktop dentro do Ubuntu (LXDE, XFCE, LXQt e MATE), sem processo residente.
+- Sanitização existente preservada; exportação inclui o log capturado do desktop. Logs centrais grandes são rotacionados ao começar uma nova sessão.
+- Não promete exportação no instante de SIGKILL: nesse caso, tenta ao reabrir o menu, se a preferência permitir.
+
 ## v1.0.117 (2026-10-14)
 
 - **Termux:X11:** diagnostica encerramentos forçados (`signal 9`, SIGKILL) sem atribuí-los automaticamente ao Phantom Process Killer. A orientação alerta sobre restrições de processos filhos e memória e mantém ajustes do Android manuais.
