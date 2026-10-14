@@ -100,3 +100,70 @@ echo "OK: cache APT vazio não faz pacotes iniciais serem pulados."
 )
 
 echo "OK: primeira sincronização usa o bootstrap oficial do pkg."
+
+# Testa o falso negativo de apt-cache em scripts com pipefail: uma saída
+# extensa faz grep -q parar cedo e pode gerar SIGPIPE no fornecedor.
+mkdir -p "$TMP/fakeapt" "$TMP/prefix/var/lib/apt/lists"
+printf 'índice válido\n' > "$TMP/prefix/var/lib/apt/lists/termux_InRelease"
+cat > "$TMP/fakeapt/apt-cache" <<'SH'
+#!/usr/bin/env bash
+if [ "$1" != show ]; then exit 100; fi
+if [ "$2" != wget ]; then exit 100; fi
+printf 'Package: wget\n'
+head -c 262144 /dev/zero | tr '\0' x
+SH
+chmod +x "$TMP/fakeapt/apt-cache"
+(
+    set -euo pipefail
+    export PREFIX="$TMP/prefix" PATH="$TMP/fakeapt:$PATH"
+    source "$CORE"
+    pacote_disponivel_termux wget
+    if pacote_disponivel_termux pacote-inexistente; then
+        echo 'FAIL: pacote inexistente foi aceito' >&2
+        exit 1
+    fi
+)
+echo 'OK: consulta apt-cache grande não confunde SIGPIPE com pacote ausente.'
+
+# Regressão do termux-setup.log: wget ficou ausente após um lote marcado como
+# bem-sucedido. O assistente deve tentar instalá-lo e conferir o resultado.
+(
+    set -euo pipefail
+    source "$SETUP"
+    simulado_instalado=false
+    chamadas=0
+    log() { :; }
+    pacote_funcional_pos_instalacao() {
+        [ "$1" = wget ] || return 0
+        [ "$simulado_instalado" = true ]
+    }
+    executar_pkg_monitorado() {
+        [ "${9:-}" = wget ] || return 42
+        chamadas=$((chamadas + 1))
+        simulado_instalado=true
+    }
+    verificar_e_reparar_pacotes_iniciais git wget zip
+    [ "$chamadas" -eq 1 ]
+    [ "${#PACOTES_SETUP_PENDENTES[@]}" -eq 0 ]
+    verificar_e_reparar_pacotes_iniciais git wget zip
+    [ "$chamadas" -eq 1 ]
+)
+(
+    set -euo pipefail
+    source "$SETUP"
+    log() { :; }
+    pacote_funcional_pos_instalacao() { [ "$1" != wget ]; }
+    executar_pkg_monitorado() { return 100; }
+    if verificar_e_reparar_pacotes_iniciais wget; then
+        echo 'FAIL: ferramenta ausente foi aceita após falha' >&2
+        exit 1
+    fi
+    [ "${PACOTES_SETUP_PENDENTES[*]}" = wget ]
+    executar_pkg_monitorado() { return 130; }
+    if verificar_e_reparar_pacotes_iniciais wget; then
+        exit 1
+    else
+        [ "$?" -eq 130 ]
+    fi
+)
+echo 'OK: wget é reparado automaticamente ou permanece pendente sem falso sucesso.'

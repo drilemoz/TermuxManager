@@ -147,6 +147,39 @@ tela_conclusao_primeira_execucao() {
     done
 }
 
+# A consulta ao catálogo APT não é prova definitiva de inexistência.
+# Quando o lote termina mas um executável obrigatório ainda falta, tenta
+# instalar diretamente só os pendentes, sem repetir todo o bootstrap.
+# A etapa 'tools' continua pendente se a instalação ou conferência falhar.
+verificar_e_reparar_pacotes_iniciais() {
+    local pacote rc
+    local -a faltando=()
+    PACOTES_SETUP_PENDENTES=()
+
+    for pacote in "$@"; do
+        pacote_funcional_pos_instalacao "$pacote" || faltando+=("$pacote")
+    done
+    [ "${#faltando[@]}" -gt 0 ] || return 0
+
+    log "WARN" "Wizard: verificacao final encontrou ausentes; tentando reparar: ${faltando[*]}"
+    for pacote in "${faltando[@]}"; do
+        if executar_pkg_monitorado "Reparando ferramenta: $pacote" 10 95 \
+            "Pacote: $pacote" "Tentativa individual de instalacao." -- install -y "$pacote"; then
+            :
+        else
+            rc=$?
+            if [ "$rc" -eq 130 ]; then
+                log "WARN" "Wizard: reparo interrompido para $pacote."
+                return 130
+            fi
+            log "ERROR" "Wizard: nao foi possivel instalar $pacote (codigo $rc)."
+        fi
+        # Não aceitar exit 0 do apt como sucesso sem verificar a ferramenta.
+        pacote_funcional_pos_instalacao "$pacote" || PACOTES_SETUP_PENDENTES+=("$pacote")
+    done
+    [ "${#PACOTES_SETUP_PENDENTES[@]}" -eq 0 ]
+}
+
 assistente_primeira_execucao() {
     [ -f "$FIRST_RUN_FILE" ] && return 0
 
@@ -224,17 +257,19 @@ assistente_primeira_execucao() {
             ferramentas_rc=$?
         fi
 
-        # Só considera a etapa concluída se os pacotes realmente estiverem
-        # presentes. Antes, um apt-cache vazio podia classificar tudo como
-        # indisponível, retornar sucesso e gravar tools=done sem baixar nada.
+        # Confere executáveis reais e repara só os ausentes. Pacotes como
+        # wget não podem ser ignorados silenciosamente por uma consulta
+        # imprecisa ao apt-cache. Não marcar tools=done se a reparação falhar.
         local -a pacotes_pendentes=()
         if [ "$ferramentas_rc" -eq 0 ]; then
-            for pacote_inicial in "${pacotes_iniciais[@]}"; do
-                pacote_funcional_pos_instalacao "$pacote_inicial" || pacotes_pendentes+=("$pacote_inicial")
-            done
-            if [ "${#pacotes_pendentes[@]}" -gt 0 ]; then
-                ferramentas_rc=1
-                log "ERROR" "Wizard: ferramentas ainda indisponíveis após instalação: ${pacotes_pendentes[*]}"
+            if verificar_e_reparar_pacotes_iniciais "${pacotes_iniciais[@]}"; then
+                ferramentas_rc=0
+            else
+                ferramentas_rc=$?
+            fi
+            pacotes_pendentes=("${PACOTES_SETUP_PENDENTES[@]}")
+            if [ "$ferramentas_rc" -ne 0 ] && [ "$ferramentas_rc" -ne 130 ]; then
+                log "ERROR" "Wizard: ferramentas ainda indisponíveis após reparo: ${pacotes_pendentes[*]}"
                 {
                     printf '\n[Manager] Verificação final encontrou pendências: %s\n' "${pacotes_pendentes[*]}"
                 } >> "$TERMUX_SETUP_LOG" 2>/dev/null || true

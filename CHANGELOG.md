@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.107] - 2026-10-14
+
+### Corrigido
+- Corrigida a classificação de pacotes disponíveis pelo `apt-cache`: removido o pipeline `apt-cache show | grep -q`, que podia indicar ausência incorretamente devido a `SIGPIPE` quando o Manager usa `pipefail`.
+- A primeira instalação agora tenta reparar diretamente apenas ferramentas obrigatórias que ainda não estejam funcionais após o lote, inclusive `wget`, mesmo quando a consulta inicial ao catálogo as tiver ignorado.
+- Cada reparo é confirmado pela presença real da ferramenta; falhas mantêm a etapa pendente, e interrupções continuam retornando `130` sem marcar o assistente como concluído.
+
+### Testes
+- Ampliado `test-first-install-packages.sh` com regressões de saída extensa do `apt-cache`, recuperação de `wget`, ausência persistente e interrupção. A suíte permanece com 46 arquivos de testes.
+
 ## [1.0.106] - 2026-09-24
 
 ### Corrigido

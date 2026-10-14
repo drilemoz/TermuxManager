@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.106  
+**Versão atual:** 1.0.107  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -28,6 +28,10 @@ O Manager usa o **nome da pasta** como identidade padrão do projeto. O campo `n
 Ao executar frontend + backend juntos, o Manager usa um painel único com quatro etapas (Backend, Frontend, Inicialização e Disponibilidade). Status, avisos, PID, logs e detecção de servidor permanecem dentro da moldura visual durante a execução. Quando uma etapa falha, o painel é encerrado corretamente e o Manager oferece **Coletar logs do teste**, gerando em Downloads um único TXT sanitizado com logs de backend, frontend, Manager e metadados de processo.
 
 
+
+### Primeira instalação: correção de `wget` e pacotes ignorados (1.0.107)
+
+A consulta de pacotes por `apt-cache show` não gera mais falso negativo devido ao uso de `grep -q` com `pipefail`. Ao terminar a instalação inicial, se alguma ferramenta obrigatória continuar ausente (como `wget`), o assistente tenta instalar apenas essa ferramenta e verifica novamente seu executável. Se não conseguir, mantém a configuração pendente e informa o erro no log, sem registrar sucesso incorretamente.
 
 ### Primeira instalação: pós-checagem e exportação de log (1.0.106)
 
@@ -403,10 +407,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.106
-Tag: v1.0.106
-Release: Manager 1.0.106
-Pacote único: TermuxManager-v1.0.106.zip
+Versão: 1.0.107
+Tag: v1.0.107
+Release: Manager 1.0.107
+Pacote único: TermuxManager-v1.0.107.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

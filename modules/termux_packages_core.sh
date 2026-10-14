@@ -100,7 +100,11 @@ pacote_disponivel_termux() {
     # classificar esse estado como "indisponível" fazia o assistente pular
     # justamente os pacotes iniciais e marcar a etapa como concluída.
     indices_apt_inicializados || return 0
-    apt-cache show "$pacote" 2>/dev/null | grep -q '^Package:[[:space:]]'
+    # Evita `grep -q` sobre um pipe com `pipefail`: ao encerrar cedo, grep
+    # pode provocar SIGPIPE (141) em apt-cache e classificar falsamente um
+    # pacote existente como indisponível. O status do próprio apt-cache é a
+    # fonte correta para verificar se há metadados disponíveis.
+    apt-cache show "$pacote" >/dev/null 2>&1
 }
 
 status_pacote() {
