@@ -1,3 +1,10 @@
+## v1.0.124 (2026-10-18)
+
+- Execução de projeto com backend único (PHP, Laravel, Python ou API) recebe opção **1** diretamente, sem criar opção de frontend inexistente nem exigir digitar 2 fora da lista.
+- Projetos PHP simples exibem **Iniciar site PHP**; projetos com frontend e backend preservam opções 1, 2 e 3. Rodapé do menu mostra somente as escolhas válidas.
+- Mantidos o servidor PHP local, a detecção do IguaNews como um projeto na raiz do Painel, a abertura do navegador e a separação do MariaDB.
+- Incluído teste de regressão para PHP puro, Laravel, frontend isolado, fullstack, cancelamento e opções ocultas.
+
 ## v1.0.123 (2026-10-18)
 
 - Corrigida a detecção de portais PHP importados de forma achatada diretamente em `~/Painel`: `app/`, `bin/`, `public/` e `tests/` deixam de aparecer como projetos independentes. A raiz passa a ser listada como projeto PHP único quando possui marcador real (`public/index.php`, `composer.json`, etc.).

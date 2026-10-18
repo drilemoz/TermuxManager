@@ -4,7 +4,13 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.123  
+**Versão atual:** 1.0.124  
+
+### Menu de execução ajustado (1.0.124)
+
+- Para projetos PHP/Laravel sem frontend separado, **Executar projeto** oferece `1) Iniciar site PHP`, e não um frontend inexistente; o navegador abre no endereço local após o servidor responder.
+- Projetos backend-only (por exemplo, Python/API) também usam a opção 1; frontend-only permanece opção 1. Projetos fullstack mantêm 1 frontend, 2 backend e 3 ambos.
+- Essa atualização altera o **Termux Manager**, não o código do IguaNews. O MariaDB continua sendo instalado e inicializado separadamente.
 
 ### Importação de portais PHP como um único projeto (1.0.123)
 
@@ -523,10 +529,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.123
-Tag: v1.0.123
-Release: Manager 1.0.123
-Pacote único: TermuxManager-v1.0.123.zip
+Versão: 1.0.124
+Tag: v1.0.124
+Release: Manager 1.0.124
+Pacote único: TermuxManager-v1.0.124.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

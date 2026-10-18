@@ -357,20 +357,53 @@ confirmar_inicio() {
 }
 
 menu_executar_projeto() {
-    local projeto="$1" nome_front="" nome_back="" op
+    local projeto="$1" nome_front="" nome_back="" op rodape descricao_back rotulo_back
     local itens=()
+    if [ -z "$FRONT_DIR" ] && [ -z "$BACK_DIR" ]; then
+        error "Nenhum componente executável foi detectado."
+        pause
+        return 1
+    fi
     if [ -n "$FRONT_DIR" ]; then
         nome_processo_projeto "$projeto" frontend; nome_front="$NOME_PROCESSO"
         itens+=("1|🌐|Executar frontend|Iniciar $FRONT_FRAMEWORK")
     fi
     if [ -n "$BACK_DIR" ]; then
         nome_processo_projeto "$projeto" backend; nome_back="$NOME_PROCESSO"
-        itens+=("2|🧰|Executar backend|Iniciar $BACK_FRAMEWORK")
+        descricao_back="Executar backend"
+        rotulo_back="Iniciar backend"
+        case "$BACK_FRAMEWORK" in
+            PHP|Laravel)
+                descricao_back="Iniciar site PHP"
+                rotulo_back="Iniciar site PHP"
+                ;;
+        esac
+        if [ -n "$FRONT_DIR" ]; then
+            itens+=("2|🧰|$descricao_back|Iniciar $BACK_FRAMEWORK")
+        else
+            # Projeto com componente único: sempre opção 1, independentemente
+            # de ser backend (PHP/Python/API) ou frontend (Vite/React).
+            itens+=("1|🧰|$descricao_back|Iniciar $BACK_FRAMEWORK")
+        fi
     fi
-    [ -n "$FRONT_DIR" ] && [ -n "$BACK_DIR" ] && itens+=("3|🧩|Executar sistema|Iniciar os dois componentes")
+    if [ -n "$FRONT_DIR" ] && [ -n "$BACK_DIR" ]; then
+        itens+=("3|🧩|Executar sistema|Iniciar os dois componentes")
+        rodape="[0] Cancelar  •  [1–3] Executar"
+    else
+        rodape="[0] Cancelar  •  [1] Executar"
+    fi
     itens+=("0|🔙|Cancelar|Voltar sem iniciar")
-    menu_unificado "🚀 Executar projeto" "$(basename "$projeto")" "[0] Cancelar  •  [1–3] Executar" "${itens[@]}"
+    menu_unificado "🚀 Executar projeto" "$(basename "$projeto")" "$rodape" "${itens[@]}"
     ler_opcao; op="$RESPOSTA_MENU"
+    # No projeto com backend único, a opção 1 deve iniciar esse backend.
+    # Não aceitar 2 invisível, nem encaminhar 1 para frontend inexistente.
+    if [ -z "$FRONT_DIR" ] && [ -n "$BACK_DIR" ]; then
+        if [ "$op" = "1" ]; then
+            op="2"
+        elif [ "$op" = "2" ]; then
+            op="invalida"
+        fi
+    fi
     case "$op" in
         1)
             [ -n "$FRONT_DIR" ] || { error "Frontend não detectado."; pause; return; }
@@ -381,7 +414,7 @@ menu_executar_projeto() {
             ;;
         2)
             [ -n "$BACK_DIR" ] || { error "Backend não detectado."; pause; return; }
-            confirmar_inicio "$projeto" "Iniciar backend" || return
+            confirmar_inicio "$projeto" "$rotulo_back" || return
             executar_em_background "$BACK_DIR" "$BACK_RUN_CMD" "$nome_back" "$projeto" backend || { pause; return; }
             if aguardar_backend_local "$BACK_DIR" "$nome_back" 20; then
                 # PHP puro/Laravel disponibiliza páginas, não somente uma API.
