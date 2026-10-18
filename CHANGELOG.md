@@ -1,3 +1,10 @@
+## v1.0.123 (2026-10-18)
+
+- Corrigida a detecção de portais PHP importados de forma achatada diretamente em `~/Painel`: `app/`, `bin/`, `public/` e `tests/` deixam de aparecer como projetos independentes. A raiz passa a ser listada como projeto PHP único quando possui marcador real (`public/index.php`, `composer.json`, etc.).
+- Pastas internas PHP conhecidas são excluídas da lista apenas quando há um projeto PHP reconhecido na raiz. Outros diretórios de projetos continuam visíveis.
+- Ajustada classificação de `app/` PHP dentro de uma raiz PHP para não ser interpretado como frontend independente.
+- Preservados dados e excluídas as operações inseguras de exclusão ou cópia recursiva da raiz do Painel. Mantido docroot `public/` e suporte às demais stacks.
+
 ## v1.0.122 (2026-10-18)
 
 - Projetos PHP sem Composer reconhecidos por `index.php`, scripts `.php` na raiz e entrada em pastas web (`public/`, `web/`, `www/`, `htdocs/`, `public_html/`). Inclui identificação de PHP em backend/.

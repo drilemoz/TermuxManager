@@ -4,7 +4,15 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.122  
+**Versão atual:** 1.0.123  
+
+### Importação de portais PHP como um único projeto (1.0.123)
+
+- Corrige a descoberta quando um ZIP com portal PHP (ex.: IguaNews, composto de `app/`, `bin/`, `public/` e `tests/`) é importado diretamente para `~/Painel`. O Manager passa a exibir a **raiz do Painel como um projeto**, sem duplicar as subpastas internas na lista.
+- A detecção precisa de um marcador real na raiz, como `composer.json`, `index.php` ou `public/index.php`. Não agrupa pastas avulsas só por conterem scripts PHP.
+- Outros projetos independentes continuam listados, desde que não usem um nome reservado para pastas internas PHP. Importar cada projeto como `~/Painel/projetos/Nome/` é recomendado para isolamento e para evitar ambiguidades.
+- Com `public/index.php`, executar o projeto na raiz mantém `public/` como docroot HTTP. A atualização **não move nem exclui arquivos**, não altera o portal nem instala/configura o MariaDB.
+- As opções **Excluir projeto** e **Copiar projeto** bloqueiam operações sobre a raiz inteira do Painel, evitando apagar tudo ou criar uma cópia recursiva. Para cópia independente, importe o ZIP numa pasta própria. Pode-se personalizar o nome de exibição como `IguaNews` no menu do projeto.
 
 ### Projetos PHP e portais locais (1.0.122)
 
@@ -515,10 +523,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.122
-Tag: v1.0.122
-Release: Manager 1.0.122
-Pacote único: TermuxManager-v1.0.122.zip
+Versão: 1.0.123
+Tag: v1.0.123
+Release: Manager 1.0.123
+Pacote único: TermuxManager-v1.0.123.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

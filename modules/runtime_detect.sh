@@ -311,7 +311,9 @@ detectar_estrutura_projeto() {
             frontend|front|client|web|ui|app|webapp)
                 if [ -z "$FRONT_DIR" ]; then
                     detectar_stack "$sub"
-                    if [ "$DETECT_TIPO" != "desconhecido" ]; then
+                    if [ "$DETECT_TIPO" != "desconhecido" ] &&
+                       ! { [ "$BACK_DIR" = "$dir" ] && [ "$BACK_FRAMEWORK" = PHP ] &&
+                           { [ "$DETECT_FRAMEWORK" = PHP ] || [ "$DETECT_FRAMEWORK" = Laravel ]; }; }; then
                         FRONT_DIR="$sub"; FRONT_FRAMEWORK="$DETECT_FRAMEWORK"
                         FRONT_GERENCIADOR="$DETECT_GERENCIADOR"; FRONT_RUN_CMD="$DETECT_RUN_CMD"
                     fi

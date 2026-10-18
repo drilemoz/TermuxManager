@@ -50,6 +50,32 @@ eh_projeto_valido() {
     return 1
 }
 
+# Uma importação "mesclar no Painel" pode colocar o conteúdo de um portal
+# PHP diretamente em ~/Painel: app/, bin/, public/, tests/ etc. Não são
+# projetos distintos; a raiz é a unidade que contém public/index.php.
+# Um diretório app/ isolado, porém, continua sendo um projeto independente.
+painel_tem_projeto_php_na_raiz() {
+    local base="${1:-$PAINEL_DIR}"
+    [ -d "$base" ] || return 1
+    # Marcador diretamente associado à raiz do aplicativo ou a seu docroot.
+    [ -f "$base/composer.json" ] || [ -f "$base/index.php" ] || \
+        [ -f "$base/artisan" ] || [ -f "$base/public/index.php" ] || \
+        [ -f "$base/web/index.php" ] || [ -f "$base/www/index.php" ] || \
+        [ -f "$base/htdocs/index.php" ] || [ -f "$base/public_html/index.php" ]
+}
+
+# Essas pastas integram o projeto PHP da raiz e nunca devem virar entradas
+# separadas quando a raiz foi reconhecida. Projetos de nomes não-reservados
+# continuam aparecendo normalmente ao lado do projeto do Painel.
+painel_pasta_interna_php() {
+    case "${1,,}" in
+        app|bin|public|tests|test|config|database|db|migrations|src|lib|includes|\
+        routes|resources|storage|vendor|templates|views|cache|var|\
+        web|www|htdocs|public_html|docs|scripts|bootstrap) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # Verdadeiro se o item está direto na raiz de ~/Painel (não dentro de
 # ~/Painel/projetos). Usado para não exibir Tipo/stack nesses casos.
 eh_painel_raiz() {
@@ -75,7 +101,7 @@ rotulo_stack_projeto() {
 #   BACKUPS_ENCONTRADOS   → nomes de arquivo dentro de backups/
 descobrir_entradas() {
     PROJETOS_ENCONTRADOS=(); ARQUIVOS_COMUNS=(); BACKUPS_ENCONTRADOS=()
-    local base f nome origem_label
+    local base f nome origem_label painel_php_raiz=false
     local -A adicionados=()
 
     # Cada diretório de primeiro nível é uma unidade de projeto. A detecção de
@@ -85,8 +111,16 @@ descobrir_entradas() {
         [ -d "$base" ] || continue
         [ "$base" = "$PAINEL_DIR" ] && origem_label="~/Painel" || origem_label="~/Painel/projetos"
         if [ "$base" = "$PAINEL_DIR" ]; then
+            # Prioriza a raiz para projetos PHP achatados durante a importação.
+            # A detecção anterior só reconhecia monorepos frontend/backend,
+            # promovendo indevidamente app/, bin/, public/ e tests/ a projetos.
+            if painel_tem_projeto_php_na_raiz "$PAINEL_DIR"; then
+                PROJETOS_ENCONTRADOS+=("$PAINEL_DIR|~/Painel (PHP na raiz)")
+                adicionados["$PAINEL_DIR"]=1
+                painel_php_raiz=true
+            fi
             detectar_estrutura_projeto "$PAINEL_DIR"
-            if [ "$PROJ_MODO" = fullstack ] && [ "$FRONT_DIR" != "$PAINEL_DIR" ] && [ "$BACK_DIR" != "$PAINEL_DIR" ]; then
+            if [ "$painel_php_raiz" != true ] && [ "$PROJ_MODO" = fullstack ] && [ "$FRONT_DIR" != "$PAINEL_DIR" ] && [ "$BACK_DIR" != "$PAINEL_DIR" ]; then
                 # A raiz do Painel representa um único projeto/monorepo. As
                 # pastas de componentes detectadas (frontend/backend etc.)
                 # pertencem a ele e não devem reaparecer como projetos
@@ -101,6 +135,12 @@ descobrir_entradas() {
             nome="$(basename "$f")"
             [[ "$nome" == .* || "$nome" == projetos || "$nome" == backups ]] && continue
             [ -n "${adicionados[$f]:-}" ] && continue
+            # Ignora apenas os diretórios internos conhecidos do projeto
+            # PHP na raiz; projetos independentes de outros nomes permanecem.
+            if [ "$base" = "$PAINEL_DIR" ] && [ "$painel_php_raiz" = true ] && \
+               [ -d "$f" ] && painel_pasta_interna_php "$nome"; then
+                continue
+            fi
             if [ -d "$f" ] && eh_projeto_valido "$f"; then
                 PROJETOS_ENCONTRADOS+=("$f|$origem_label")
                 adicionados["$f"]=1
@@ -464,6 +504,14 @@ abrir_pasta() {
 # permitindo levá-lo pra outro destino (Painel, Painel/projetos, achatado etc).
 copiar_projeto_existente() {
     local projeto="$1"
+    # Copiar ~/Painel para ~/Painel/projetos causaria recursão na própria
+    # pasta de origem (e incluiria logs/backups/metadata). Bloqueio seguro.
+    if [ "$projeto" = "$PAINEL_DIR" ]; then
+        warn "Cópia da raiz do Painel bloqueada para evitar recursão e duplicação de dados."
+        info "Para uma pasta independente, importe o ZIP em ~/Painel/projetos/Nome do projeto."
+        pause
+        return 1
+    fi
     menu_unificado "📋 Copiar projeto" "Escolha o formato da nova cópia" \
         "[0] Voltar  •  [1–3] Selecionar" \
         "1|📁|Pasta completa|Mantém nome e estrutura do projeto" \
