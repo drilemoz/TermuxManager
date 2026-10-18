@@ -1,3 +1,10 @@
+## v1.0.122 (2026-10-18)
+
+- Projetos PHP sem Composer reconhecidos por `index.php`, scripts `.php` na raiz e entrada em pastas web (`public/`, `web/`, `www/`, `htdocs/`, `public_html/`). Inclui identificação de PHP em backend/.
+- PHP simples agora exige apenas o interpretador; não tenta executar Composer nem exige `vendor/`. Projetos com `composer.json` continuam usando Composer e Laravel continua reconhecido.
+- Servidor PHP local em `127.0.0.1:8000`, com docroot público quando houver, porta explícita usada no monitoramento e abertura do navegador para backend PHP simples.
+- Recomendações de ferramentas passam a enxergar `index.php` e deixam Composer opcional para PHP puro. Orientação para MariaDB/MySQL, segurança de `.env` e testes de regressão de PHP.
+
 ## v1.0.121 (2026-10-14)
 
 - Catálogo Linux ampliado para 21 categorias e 160 entradas com navegadores gráficos e de terminal, escritório, PDF, mídias, desenvolvimento, jogos, ferramentas científicas, servidores e acessórios do desktop.

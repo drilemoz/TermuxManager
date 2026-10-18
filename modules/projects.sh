@@ -5,7 +5,7 @@
 # DESCOBERTA DE PROJETOS (identifica pastas de projeto de verdade)
 # ============================================================================
 
-MARCADORES_PROJETO_EXATOS=(package.json composer.json Cargo.toml pyproject.toml requirements.txt go.mod pom.xml build.gradle build.gradle.kts angular.json)
+MARCADORES_PROJETO_EXATOS=(package.json composer.json index.php Cargo.toml pyproject.toml requirements.txt go.mod pom.xml build.gradle build.gradle.kts angular.json)
 MARCADORES_PROJETO_GLOB=(vite.config next.config nuxt.config svelte.config)
 
 eh_projeto_valido() {
@@ -16,6 +16,8 @@ eh_projeto_valido() {
     for m in "${MARCADORES_PROJETO_EXATOS[@]}"; do
         [ -f "$dir/$m" ] && return 0
     done
+    # Sites PHP podem não ter composer.json ou index.php na raiz.
+    php_tem_codigo "$dir" && return 0
     shopt -s nullglob
     for m in "${MARCADORES_PROJETO_GLOB[@]}"; do
         local matches=("$dir/${m}".*)
@@ -31,6 +33,10 @@ eh_projeto_valido() {
         nome=$(basename "${sub%/}" | tr '[:upper:]' '[:lower:]')
         case "$nome" in
             frontend|front|client|web|backend|back|server|api)
+                if php_tem_codigo "${sub%/}"; then
+                    shopt -u nullglob
+                    return 0
+                fi
                 for m in "${MARCADORES_PROJETO_EXATOS[@]}"; do
                     if [ -f "$sub$m" ]; then
                         shopt -u nullglob

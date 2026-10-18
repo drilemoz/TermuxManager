@@ -157,7 +157,12 @@ abrir_navegador() {
 
 porta_esperada_execucao() {
     local dir="$1" cmd="$2" componente="$3" porta=""
-    if [ -f "$dir/.env" ]; then
+    # Para PHP a porta do comando `php -S` prevalece sobre PORT no .env,
+    # que pode pertencer à aplicação e não ao servidor de desenvolvimento.
+    if [[ "$cmd" =~ php[[:space:]]+-S[[:space:]]+[^[:space:]]*:([0-9]{2,5}) ]]; then
+        porta="${BASH_REMATCH[1]}"
+    fi
+    if ! porta_valida "$porta" && [ -f "$dir/.env" ]; then
         porta="$(grep -E '^[[:space:]]*PORT[[:space:]]*=' "$dir/.env" 2>/dev/null | tail -n 1 | cut -d= -f2- | tr -cd '0-9')"
     fi
     if ! porta_valida "$porta"; then
@@ -378,7 +383,19 @@ menu_executar_projeto() {
             [ -n "$BACK_DIR" ] || { error "Backend não detectado."; pause; return; }
             confirmar_inicio "$projeto" "Iniciar backend" || return
             executar_em_background "$BACK_DIR" "$BACK_RUN_CMD" "$nome_back" "$projeto" backend || { pause; return; }
-            aguardar_backend_local "$BACK_DIR" "$nome_back" 20 || true
+            if aguardar_backend_local "$BACK_DIR" "$nome_back" 20; then
+                # PHP puro/Laravel disponibiliza páginas, não somente uma API.
+                # Para o portal local, abrir o navegador como fazemos com Vite.
+                if [ -z "$FRONT_DIR" ]; then
+                    case "$BACK_FRAMEWORK" in
+                        PHP|Laravel)
+                            local porta_php
+                            porta_php="$(porta_processo "$nome_back")"
+                            porta_valida "$porta_php" && abrir_navegador "http://127.0.0.1:$porta_php"
+                            ;;
+                    esac
+                fi
+            fi
             ;;
         3)
             [ -n "$FRONT_DIR" ] && [ -n "$BACK_DIR" ] || { error "Sistema completo não detectado."; pause; return; }

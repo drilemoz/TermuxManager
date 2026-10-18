@@ -528,7 +528,7 @@ adicionar_pacote_unico() {
 ferramentas_recomendadas_projetos() {
     local raiz="${PAINEL_DIR:-$HOME/Painel}" arquivo base dir jdk
     local -a arquivos=() pacotes=() motivos=()
-    local node=0 python=0 php=0 go=0 rust=0 java_maven=0 java_gradle=0 projetos=0
+    local node=0 python=0 php=0 php_composer=0 go=0 rust=0 java_maven=0 java_gradle=0 projetos=0
     [ -d "$raiz" ] || {
         cabecalho_tela "🧠 Recomendado" "Análise dos projetos"
         caixa_simples "Nenhum Painel encontrado" "Ainda não há projetos para analisar."
@@ -537,7 +537,7 @@ ferramentas_recomendadas_projetos() {
     }
     while IFS= read -r arquivo; do arquivos+=("$arquivo"); done < <(
         find "$raiz" -maxdepth 6 -type f \
-            \( -name package.json -o -name requirements.txt -o -name pyproject.toml -o -name composer.json -o -name go.mod -o -name Cargo.toml -o -name pom.xml -o -name build.gradle -o -name build.gradle.kts \) \
+            \( -name package.json -o -name requirements.txt -o -name pyproject.toml -o -name composer.json -o -name index.php -o -name go.mod -o -name Cargo.toml -o -name pom.xml -o -name build.gradle -o -name build.gradle.kts \) \
             -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/vendor/*' 2>/dev/null | head -n 300
     )
     declare -A vistos=()
@@ -548,7 +548,8 @@ ferramentas_recomendadas_projetos() {
         case "$base" in
             package.json) node=$((node + 1)) ;;
             requirements.txt|pyproject.toml) python=$((python + 1)) ;;
-            composer.json) php=$((php + 1)) ;;
+            composer.json) php=$((php + 1)); php_composer=$((php_composer + 1)) ;;
+            index.php) [ ! -f "$dir/composer.json" ] && php=$((php + 1)) ;;
             go.mod) go=$((go + 1)) ;;
             Cargo.toml) rust=$((rust + 1)) ;;
             pom.xml) java_maven=$((java_maven + 1)) ;;
@@ -563,7 +564,9 @@ ferramentas_recomendadas_projetos() {
     if [ "$python" -gt 0 ]; then command -v python >/dev/null 2>&1 || pacotes+=(python); fi
     if [ "$php" -gt 0 ]; then
         command -v php >/dev/null 2>&1 || pacotes+=(php)
-        command -v composer >/dev/null 2>&1 || pacotes+=(composer)
+        if [ "$php_composer" -gt 0 ]; then
+            command -v composer >/dev/null 2>&1 || pacotes+=(composer)
+        fi
     fi
     if [ "$go" -gt 0 ]; then command -v go >/dev/null 2>&1 || pacotes+=(golang); fi
     if [ "$rust" -gt 0 ]; then command -v cargo >/dev/null 2>&1 || pacotes+=(rust); fi

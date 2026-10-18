@@ -158,6 +158,7 @@ dependencias_presentes_basicas() {
     case "$gerenciador" in
         npm|pnpm|yarn) [ -d "$dir/node_modules" ] ;;
         composer) [ -d "$dir/vendor" ] ;;
+        php) comando_existe php ;;
         pip) comando_existe python && comando_existe pip ;;
         go) comando_existe go ;;
         cargo) comando_existe cargo ;;
@@ -491,6 +492,10 @@ instalar_dependencias() (
                 executar_com_progresso "Instalando pip em $nome" "$log_tmp" pip install . || return 1
             fi
             ;;
+        php)
+            # Sem composer.json não há pacotes para baixar nem vendor a exigir.
+            garantir_comando php php || return 1
+            ;;
         composer)
             garantir_comando php php || return 1
             garantir_comando composer composer || return 1
@@ -541,6 +546,9 @@ verificar_instalacao() {
             ;;
         pip)
             comando_existe python || pendencias+=("python não instalado")
+            ;;
+        php)
+            comando_existe php || pendencias+=("php não instalado")
             ;;
         composer)
             [ ! -d "$dir/vendor" ] && pendencias+=("pasta vendor não foi criada")
@@ -764,7 +772,7 @@ testar_projeto() {
     case "$PROJ_MODO" in
         desconhecido)
             error "Não foi possível identificar a tecnologia do projeto."
-            info "Verifique se existem arquivos como package.json, requirements.txt, composer.json, go.mod, Cargo.toml, pom.xml, build.gradle (na raiz ou em subpastas frontend/backend)."
+            info "Verifique arquivos como index.php, public/index.php, *.php, composer.json, package.json, requirements.txt, go.mod ou Cargo.toml (na raiz ou em frontend/backend)."
             pause
             return
             ;;

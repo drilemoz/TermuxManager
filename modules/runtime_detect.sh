@@ -92,6 +92,27 @@ PYJSON
         | grep -qE '"'"$script"'"[[:space:]]*:'
 }
 
+# Projetos PHP sem Composer são comuns no Termux (sites com index.php).
+# O document root público tem prioridade para não expor config/ e .env
+# acidentalmente quando o projeto utiliza uma pasta public/.
+php_document_root() {
+    local dir="$1" pasta
+    for pasta in public web www htdocs public_html; do
+        [ -f "$dir/$pasta/index.php" ] && { printf '%s' "$pasta"; return 0; }
+    done
+    printf '.'
+}
+
+php_tem_codigo() {
+    local dir="$1" pasta
+    [ -f "$dir/index.php" ] && return 0
+    for pasta in public web www htdocs public_html; do
+        [ -f "$dir/$pasta/index.php" ] && return 0
+    done
+    # Considera arquivos PHP na raiz, inclusive portais legados sem index.php.
+    compgen -G "$dir/*.php" >/dev/null 2>&1
+}
+
 detectar_stack() {
     local dir="$1"
     DETECT_TIPO="desconhecido"
@@ -200,14 +221,27 @@ detectar_stack() {
         return
     fi
 
-    if [ -f "$dir/composer.json" ]; then
-        DETECT_GERENCIADOR="composer"
-        if grep -qi "laravel/framework" "$dir/composer.json"; then
-            DETECT_TIPO="backend"; DETECT_FRAMEWORK="Laravel"
-            DETECT_RUN_CMD="php artisan serve --host=0.0.0.0"
+    if [ -f "$dir/composer.json" ] || php_tem_codigo "$dir"; then
+        DETECT_TIPO="backend"
+        if [ -f "$dir/composer.json" ]; then
+            DETECT_GERENCIADOR="composer"
         else
-            DETECT_TIPO="backend"; DETECT_FRAMEWORK="PHP"
-            DETECT_RUN_CMD="php -S 0.0.0.0:8000"
+            # PHP puro não depende de Composer, apenas do interpretador.
+            DETECT_GERENCIADOR="php"
+        fi
+        if [ -f "$dir/artisan" ] && [ -f "$dir/composer.json" ] && grep -qi 'laravel/framework' "$dir/composer.json"; then
+            DETECT_FRAMEWORK="Laravel"
+            DETECT_RUN_CMD="php artisan serve --host=127.0.0.1 --port=8000"
+        else
+            DETECT_FRAMEWORK="PHP"
+            local docroot
+            docroot="$(php_document_root "$dir")"
+            # Endereço local apenas: servidor embutido não é servidor de produção.
+            if [ "$docroot" = . ]; then
+                DETECT_RUN_CMD="php -S 127.0.0.1:8000"
+            else
+                DETECT_RUN_CMD="php -S 127.0.0.1:8000 -t $docroot"
+            fi
         fi
         return
     fi

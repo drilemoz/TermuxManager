@@ -4,7 +4,16 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.121  
+**Versão atual:** 1.0.122  
+
+### Projetos PHP e portais locais (1.0.122)
+
+- Reconhece `index.php`, arquivos `*.php` na raiz, `public/index.php`, `web/index.php`, `www/index.php`, `htdocs/index.php` e `public_html/index.php` sem exigir Composer.
+- Em **Projetos**, o PHP é exibido como backend e pode ser preparado e executado. Para PHP sem Composer, apenas o pacote `php` é necessário; projetos com `composer.json` mantêm a instalação pelo Composer.
+- Inicia um servidor de **desenvolvimento** em `127.0.0.1:8000`, usando a pasta pública com `-t public` quando encontrada, e abre `http://127.0.0.1:8000` no navegador após confirmar a inicialização.
+- Para Laravel, mantém `artisan serve` mas escuta somente em `127.0.0.1`.
+- Projetos com `.env` ou credenciais na pasta publicada devem proteger esses arquivos. Prefira uma pasta `public/` separada; o servidor PHP embutido **não é adequado para produção** nem para acesso público na internet.
+- Para portais PHP + MySQL/MariaDB no Termux, instale **PHP** em Ferramentas de desenvolvimento e **MariaDB** em Bancos de dados. Configure e inicie o MariaDB separadamente; a nova detecção não cria banco, usuário, schema, migração ou backups do portal. Confira as extensões com `php -m | grep -Ei 'pdo_mysql|mysqli'`.
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -29,7 +38,7 @@ Ao executar frontend + backend juntos, o Manager usa um painel único com quatro
 
 
 
-### Catálogo Linux ampliado e navegadores (1.0.121)
+### Catálogo Linux ampliado e navegadores (1.0.122)
 
 - **21 categorias, 160 sugestões de pacotes** exclusivas do catálogo das distribuições Linux PRoot, sem copiar o catálogo de dependências do Termux.
 - Navegadores GUI (NetSurf, GNOME Web, Falkon, Qutebrowser) e de terminal (W3M, Lynx, Links, ELinks); gerenciadores de arquivos, escritório, PDF, multimídia, edição de imagens, IDEs, linguagens, terminal, rede, servidores, bancos de dados, jogos, ciência, temas e fontes.
@@ -506,10 +515,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.121
-Tag: v1.0.121
-Release: Manager 1.0.121
-Pacote único: TermuxManager-v1.0.121.zip
+Versão: 1.0.122
+Tag: v1.0.122
+Release: Manager 1.0.122
+Pacote único: TermuxManager-v1.0.122.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
