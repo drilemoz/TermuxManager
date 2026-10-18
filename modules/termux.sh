@@ -24,7 +24,7 @@ TERMUX_REPO_PRIMARY=""
 TERMUX_REPO_SUMMARY=""
 
 TERMUX_MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-for _termux_submodule in termux_packages.sh termux_tools.sh termux_setup.sh; do
+for _termux_submodule in termux_packages.sh termux_tools.sh termux_phpmyadmin.sh termux_setup.sh; do
     if [ ! -r "$TERMUX_MODULE_DIR/$_termux_submodule" ]; then
         printf 'Erro: submódulo Termux ausente ou ilegível: %s\n' "$TERMUX_MODULE_DIR/$_termux_submodule" >&2
         return 1 2>/dev/null || exit 1

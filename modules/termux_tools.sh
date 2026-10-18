@@ -553,13 +553,15 @@ menu_php_dev() {
             "1|🐘|PHP básico|Interpretador para sites PHP puros" \
             "2|📦|Composer|Somente projetos com composer.json" \
             "3|🗄️|PHP + MariaDB|Base para portais PHP com MySQL" \
-            "4|🔎|Verificar PHP|PDO, pdo_mysql, fileinfo e banco"
+            "4|🔎|Verificar PHP|PDO, pdo_mysql, fileinfo e banco" \
+            "5|🗄️|phpMyAdmin|Administração web do MariaDB"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) instalar_lista_pacotes "PHP básico" php ;;
             2) instalar_lista_pacotes "Composer" php composer ;;
             3) instalar_lista_pacotes "PHP + MariaDB" php mariadb ;;
             4) diagnostico_php_local ;;
+            5) menu_phpmyadmin ;;
             0) return ;;
             *) feedback_curto "Opção inválida." ;;
         esac
@@ -572,13 +574,15 @@ menu_bancos_dev() {
             "1|📄|SQLite|Leve • $(status_comando_curto sqlite3)" \
             "2|🐘|PostgreSQL|Servidor • $(status_comando_curto psql)" \
             "3|🗄️|MariaDB|Servidor • $(status_comando_curto mariadb)" \
-            "4|⚡|Redis|Cache • $(status_comando_curto redis-server)"
+            "4|⚡|Redis|Cache • $(status_comando_curto redis-server)" \
+            "5|🌐|phpMyAdmin|Administrar MariaDB no navegador"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) instalar_lista_pacotes "SQLite" sqlite ;;
             2) instalar_lista_pacotes "PostgreSQL" postgresql ;;
             3) instalar_lista_pacotes "MariaDB" mariadb ;;
             4) instalar_lista_pacotes "Redis" redis ;;
+            5) menu_phpmyadmin ;;
             0) return ;;
             *) feedback_curto "Opção inválida." ;;
         esac

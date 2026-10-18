@@ -1,3 +1,12 @@
+## v1.0.127 (2026-10-18)
+
+- Integrado módulo `termux_phpmyadmin.sh` à central PHP e ao menu Bancos, oferecendo instalação segura, execução local, abertura pelo navegador, interrupção controlada e diagnóstico do phpMyAdmin.
+- Instalador baixa o phpMyAdmin oficial 5.2.3 por HTTPS com checksum SHA-256 oficial, rejeita arquivo alterado, testa integridade do ZIP, verifica arquivos essenciais e preserva `config.inc.php` ao reinstalar. Não inclui o produto de terceiros no ZIP do Manager.
+- Autenticação `cookie` configurada com segredo aleatório, proibição de senha em branco, socket MariaDB local e isolamento web em `127.0.0.1:8081` (sem publicar o IguaNews nem outros arquivos do Painel).
+- MariaDB somente inicia se o diretório de dados já está inicializado; não apaga ou recria bases automaticamente. Encerrar phpMyAdmin não para MariaDB. PID é confirmado contra o comando do processo antes de encerrar.
+- Ação **opcional e confirmada** para criar usuário administrativo `termux_pma` com senha aleatória mostrada uma única vez. Não substitui credenciais existentes; não grava senha em disco nem nos logs.
+- Testes locais de instalação, SHA inválido, configurações preservadas, execução HTTP em loopback, parada e isolamento de PID. Teste em Termux Android real ainda pendente.
+
 ## v1.0.126 (2026-10-18)
 
 - Revisado o instalador de ferramentas Termux, com PHP básico separado de Composer opcional, pacote PHP + MariaDB e diagnóstico de extensões PHP (`PDO`, `pdo_mysql`, `mysqli`, `fileinfo`, `zlib`).

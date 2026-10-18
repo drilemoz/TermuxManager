@@ -4,7 +4,16 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.126  
+**Versão atual:** 1.0.127  
+
+### phpMyAdmin integrado ao MariaDB (1.0.127)
+
+- **Instalar ferramentas → PHP → phpMyAdmin** ou **Instalar ferramentas → Bancos → phpMyAdmin**: instalar a distribuição oficial **phpMyAdmin 5.2.3**, iniciar o MariaDB local, iniciar/abrir/parar o servidor web local, criar opcionalmente uma conta administrativa local e visualizar diagnóstico.
+- O phpMyAdmin **não está embutido** no ZIP do Termux Manager: sua instalação baixa o arquivo oficial completo por HTTPS, verifica o **SHA-256** publicado pelo mesmo provedor e extrai para `~/.termux-manager/phpmyadmin/site`. Necessita internet para a primeira instalação; depois o uso local dispensa internet.
+- A página de administração usa **somente `127.0.0.1:8081`**, separado da porta do IguaNews (`127.0.0.1:8000`). Usa o socket `$PREFIX/var/run/mysqld.sock`, autenticação `cookie`, segredo aleatório privado e proíbe senhas em branco. O phpMyAdmin não fornece banco próprio: conecta-se ao MariaDB.
+- Uma ação opcional cria **`termux_pma`@`localhost`** com senha aleatória de 40 caracteres hexadecimais e privilégios administrativos completos, SOMENTE após confirmação e quando o cliente root local consegue entrar sem senha. A senha é exibida uma vez, **não fica em arquivos do Manager**. Não modifica uma conta `termux_pma` existente. Caso root exija senha, use uma conta já configurada ou administre-a separadamente.
+- O MariaDB existente é preservado: se estiver inicializado, pode ser iniciado na interface local; se faltar a tabela de sistema, o Manager não recria o banco automaticamente. Parar o servidor web **não encerra o MariaDB**.
+- Servidor PHP de desenvolvimento, para uso privado no próprio Android. **Nunca exponha phpMyAdmin à rede pública, encaminhamento de portas, túnel ou internet sem medidas adicionais**. Antes de restaurar bancos do IguaNews, faça backup. O uso com MariaDB real e navegadores Android ainda exige teste no celular.
 
 ### Auditoria da instalação de ferramentas (1.0.126)
 
@@ -545,10 +554,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.126
-Tag: v1.0.126
-Release: Manager 1.0.126
-Pacote único: TermuxManager-v1.0.126.zip
+Versão: 1.0.127
+Tag: v1.0.127
+Release: Manager 1.0.127
+Pacote único: TermuxManager-v1.0.127.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
