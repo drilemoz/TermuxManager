@@ -120,7 +120,7 @@ restaurar_config_padrao() {
     DIAGNOSTICO_NA_ABERTURA=false; LIMPAR_TEMPORARIOS_AUTO=true
     TEMPO_DETECTAR_PORTA=15; PAUSA_ERRO_SEGUNDOS=1; LOG_MAX_MB=5
     DESTINO_IMPORTACAO_PADRAO="perguntar"; CONFLITO_PADRAO="perguntar"; CONFIRMAR_COPIA=true
-    GITHUB_BRANCH_PADRAO="main"; MODO_ECONOMICO=false
+    GITHUB_BRANCH_PADRAO="main"; MODO_ECONOMICO=false; AUTO_UPDATE_ENABLED=true
     EXCLUSOES_PADRAO="node_modules .git dist build"
     LOG_MAX_BYTES=$((LOG_MAX_MB*1024*1024)); aplicar_cores; salvar_config
     ok "Configurações restauradas."; pause
@@ -216,7 +216,7 @@ excluir_painel_inteiro() {
     LIMPAR_TEMPORARIOS_AUTO=true; TEMPO_DETECTAR_PORTA=15; PAUSA_ERRO_SEGUNDOS=1
     LOG_MAX_MB=5; LOG_MAX_BYTES=$((5*1024*1024))
     DESTINO_IMPORTACAO_PADRAO="perguntar"; CONFLITO_PADRAO="perguntar"; CONFIRMAR_COPIA=true
-    GITHUB_BRANCH_PADRAO="main"; MODO_ECONOMICO=false
+    GITHUB_BRANCH_PADRAO="main"; MODO_ECONOMICO=false; AUTO_UPDATE_ENABLED=true
     aplicar_cores
     salvar_config
     log "INFO" "Pasta Painel inteira excluída e recriada pelo usuário (Configurações)."

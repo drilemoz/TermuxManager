@@ -12,6 +12,7 @@ UPDATER_MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 for _updater_submodule in \
     updater_core.sh \
     updater_github.sh \
+    updater_auto.sh \
     updater_local.sh \
     updater_install.sh \
     updater_ui.sh; do

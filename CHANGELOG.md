@@ -1,3 +1,13 @@
+## v1.0.128 (2026-10-18)
+
+- Verificação automática opcional de atualizações GitHub ao abrir `mm`/`manager`, com intervalo de 24 horas após sucesso e de 6 horas após falha, sem necessidade de digitar comandos.
+- Primeira configuração isolada da consulta: o assistente inicial não é interrompido e a busca só começa nas aberturas seguintes.
+- Feedback discreto para instalação atualizada, falhas de rede não impedem o uso offline; comparação SemVer e notas antes de pedir confirmação.
+- Download e instalação somente depois de autorização, com verificação do manifesto, backup, rollback e reinício do Manager existentes.
+- Configuração persistente para ativar/desativar a busca na abertura; opção manual do GitHub preservada.
+- Consulta de changelog pulada quando a versão remota não é mais nova, economizando dados e bateria.
+- Testes adicionados para primeira execução, intervalo, falha de rede, atualização disponível e fluxo de confirmação.
+
 ## v1.0.127 (2026-10-18)
 
 - Integrado módulo `termux_phpmyadmin.sh` à central PHP e ao menu Bancos, oferecendo instalação segura, execução local, abertura pelo navegador, interrupção controlada e diagnóstico do phpMyAdmin.

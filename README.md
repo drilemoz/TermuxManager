@@ -4,7 +4,15 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.127  
+**Versão atual:** 1.0.128  
+
+### Verificação automática opcional na abertura (1.0.128)
+
+- Ao executar `mm` ou `manager`, consulta a versão no GitHub se o assistente inicial **já estava concluído** e a última consulta bem-sucedida ocorreu há 24 horas ou mais. Não consulta durante o primeiro assistente, nem ao executar em pipes/sem terminal interativo.
+- Se houver versão superior na `main`, mostra as notas, pede confirmação para baixar e instalar e reutiliza o instalador transacional com backup e recuperação.
+- Se não houver internet ou o GitHub falhar, abre o menu normalmente. Limite para nova tentativa após erro: 6 horas. O check de abertura tem timeout curto, sem consultas a cada menu.
+- Para desligar: **Configurações → Comportamento → Buscar atualizações ao abrir**. Para verificar imediatamente: **Atualizar Manager → Verificar no GitHub**. O ajuste é persistido no Painel.
+- A atualização automática depende da publicação de um `MANIFEST.json` compatível na branch `main` do repositório configurado; não consulta arquivos salvos só no Drive. Não atualiza pacotes APT nem serviços do usuário.
 
 ### phpMyAdmin integrado ao MariaDB (1.0.127)
 
@@ -554,10 +562,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.127
-Tag: v1.0.127
-Release: Manager 1.0.127
-Pacote único: TermuxManager-v1.0.127.zip
+Versão: 1.0.128
+Tag: v1.0.128
+Release: Manager 1.0.128
+Pacote único: TermuxManager-v1.0.128.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

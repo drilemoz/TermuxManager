@@ -89,7 +89,7 @@ menu_config_limpeza() {
 
 menu_config_comportamento() {
     while true; do
-        menu_unificado "🔔 Comportamento" "Inicialização e registros" "[0] Voltar"             "1|🔎|Diagnóstico na abertura: $(estado_bool "$DIAGNOSTICO_NA_ABERTURA")|Exibir ambiente ao iniciar"             "2|👋|Executar assistente inicial|Abrir novamente manualmente"             "3|📦|Limite dos logs: ${LOG_MAX_MB} MB|Rotação automática"             "4|⏳|Pausa de erro: ${PAUSA_ERRO_SEGUNDOS}s|Tempo antes de redesenhar"             "5|🔋|Modo econômico: $(estado_bool "$MODO_ECONOMICO")|Menos varreduras no menu inicial"
+        menu_unificado "🔔 Comportamento" "Inicialização e registros" "[0] Voltar"             "1|🔎|Diagnóstico na abertura: $(estado_bool "$DIAGNOSTICO_NA_ABERTURA")|Exibir ambiente ao iniciar"             "2|👋|Executar assistente inicial|Abrir novamente manualmente"             "3|📦|Limite dos logs: ${LOG_MAX_MB} MB|Rotação automática"             "4|⏳|Pausa de erro: ${PAUSA_ERRO_SEGUNDOS}s|Tempo antes de redesenhar"             "5|🔋|Modo econômico: $(estado_bool "$MODO_ECONOMICO")|Menos varreduras no menu inicial"             "6|🔄|Buscar atualizações ao abrir: $(estado_bool "$AUTO_UPDATE_ENABLED")|No máximo uma consulta diária; instalação confirmada"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) alternar_config_bool DIAGNOSTICO_NA_ABERTURA ;;
@@ -97,6 +97,7 @@ menu_config_comportamento() {
             3) read -rp "Limite em MB (1-100): " novo; [[ "$novo" =~ ^[0-9]+$ ]] && [ "$novo" -ge 1 ] && [ "$novo" -le 100 ] && LOG_MAX_MB="$novo" && LOG_MAX_BYTES=$((novo*1024*1024)); salvar_config ;;
             4) read -rp "Segundos (0-5): " novo; [[ "$novo" =~ ^[0-5]$ ]] && PAUSA_ERRO_SEGUNDOS="$novo"; salvar_config ;;
             5) alternar_config_bool MODO_ECONOMICO ;;
+            6) alternar_config_bool AUTO_UPDATE_ENABLED ;;
             0) return ;;
             *) feedback_curto "Opção inválida." ;;
         esac

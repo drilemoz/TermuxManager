@@ -351,6 +351,8 @@ main() {
     ativar_captura_diagnosticos
     carregar_config
     detectar_terminal
+    local pronto_ao_iniciar=false
+    [ -f "$FIRST_RUN_FILE" ] && pronto_ao_iniciar=true
     adquirir_bloqueio || { pause; exit 1; }
     limpar_temporarios_antigos
     trap finalizar_manager EXIT
@@ -375,6 +377,9 @@ main() {
     # Garante uma transição limpa mesmo se o assistente ou o apt tiverem
     # alterado cursor, rolagem, quebra de linha ou tela alternativa.
     restaurar_terminal_manager
+    if [ "$pronto_ao_iniciar" = true ]; then
+        verificar_atualizacoes_ao_iniciar || true
+    fi
     menu_principal
 }
 

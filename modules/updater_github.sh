@@ -40,7 +40,12 @@ github_fetch_to_file() {
     github_status_render "$titulo" "$detalhe" "Conectando ao GitHub..." "Tempo aguardando: 0s" \
         "Não pressione Ctrl+C. O Manager mostrará o andamento aqui."
 
-    curl -fL -sS --retry 2 --connect-timeout 8 --max-time "$max_time" -o "$destino" "$url" 2>"$erro" &
+    # O check automático deve ser breve: não atrasar a abertura no modo offline.
+    local -a curl_opcoes=(--retry 2 --connect-timeout 8 --max-time "$max_time")
+    if [ "${GITHUB_UPDATE_AUTO_FAST:-false}" = true ]; then
+        curl_opcoes=(--retry 0 --connect-timeout 3 --max-time 7)
+    fi
+    curl -fL -sS "${curl_opcoes[@]}" -o "$destino" "$url" 2>"$erro" &
     pid=$!
     inicio="$(date +%s)"
 
@@ -103,6 +108,7 @@ consultar_atualizacao_github() {
         return 1
     fi
 
+    GITHUB_REMOTE_CHANGELOG=""
     manifest="$(cat "$manifest_tmp" 2>/dev/null)"
     versao="$(printf '%s\n' "$manifest" | sed -nE 's/^[[:space:]]*"version":[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/p' | head -n1)"
     if ! versao_semver_valida "$versao"; then
@@ -124,7 +130,7 @@ consultar_atualizacao_github() {
         "Manifesto carregado com sucesso." "Carregando changelog..." \
         "Aguarde enquanto o Manager consulta os detalhes da versão."
 
-    if github_fetch_to_file "$MANAGER_GITHUB_CHANGELOG_URL" "$changelog_tmp" \
+    if [ "$GITHUB_UPDATE_STATE" = new ] && github_fetch_to_file "$MANAGER_GITHUB_CHANGELOG_URL" "$changelog_tmp" \
         "📋 Carregando atualização" "Versão $GITHUB_REMOTE_VERSION encontrada na branch $MANAGER_GITHUB_BRANCH" 15 false; then
         changelog="$(cat "$changelog_tmp" 2>/dev/null)"
     else
@@ -169,7 +175,12 @@ verificar_atualizacao_github() {
         return 1
     fi
     GITHUB_UPDATE_INTERACTIVE=false
+    processar_atualizacao_github_consultada
+}
 
+# Chamado tanto pela opção manual como pelo verificador automático.
+# Nunca repete a consulta à rede que já foi concluída.
+processar_atualizacao_github_consultada() {
     cabecalho_tela "🌐 Atualização pelo GitHub" "Consulta concluída • branch $MANAGER_GITHUB_BRANCH"
     case "$GITHUB_UPDATE_STATE" in
         same)
