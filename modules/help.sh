@@ -76,6 +76,7 @@ ajuda_estrutura() {
         "core.sh — base, logs, bloqueio e utilitários" \
         "config.sh — preferências persistentes" \
         "ui.sh — caixas, menus e renderização atômica" \
+        "explorer.sh — navegação e operações de arquivos" \
         "import.sh — assistente, análise e cópia" \
         "projects.sh — projetos, ações e Centro de exclusão" \
         "runtime.sh — carregador do runtime" \
@@ -116,7 +117,8 @@ ajuda_estrutura() {
 
 ajuda_menus() {
     cabecalho_tela "📋 Funções do menu" "Acesso direto às funções principais"
-    caixa_simples "Menu principal"         "Gerenciar projetos: abrir, testar e organizar."         "Em execução: processos ativos, portas, logs e parada."         "Importar projeto: pasta, arquivos ou ZIP de Downloads."         "Linux no celular: terminal, pacotes, idioma, rede, logs, PRoot e X11."         "Ambiente e ferramentas: pacotes, Termux e diagnóstico."         "Atualizar Manager: GitHub main, ZIP local ou módulo."         "Configurações: aparência, caminhos, execução e manutenção."         "Ajuda e Sobre: manual, versão, changelog e desenvolvedor."
+    caixa_simples "Menu principal"         "Gerenciar projetos: abrir, testar e organizar."         "Em execução: processos ativos, portas, logs e parada."         "Importar projeto: pasta, arquivos ou ZIP de Downloads."         "Linux no celular: terminal, pacotes, idioma, rede, logs, PRoot e X11."         "Ambiente e ferramentas: pacotes, Termux e diagnóstico."         "Atualizar Manager: GitHub main, ZIP local ou módulo."         "Configurações: aparência, caminhos, execução e manutenção."         "Ajuda e Sobre: manual, versão, changelog e desenvolvedor." \
+        "Explorer: navegar pelas pastas e gerenciar arquivos sem comandos."
     pause
 }
 

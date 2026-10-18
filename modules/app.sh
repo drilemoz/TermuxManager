@@ -2,6 +2,7 @@
 # Manager.sh — módulo
 
 APP_MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$APP_MODULE_DIR/explorer.sh"
 source "$APP_MODULE_DIR/commands_favorites.sh"
 source "$APP_MODULE_DIR/resources_monitor.sh"
 unset APP_MODULE_DIR
@@ -312,7 +313,7 @@ menu_principal() {
         fi
 
         menu_unificado "🧰 MANAGER.SH — VERSÃO $MANAGER_VERSION" "$resumo_status" \
-            "[0] Sair  •  [1–8] Selecionar" \
+            "[0] Sair  •  [1–9] Selecionar" \
             "1|📁|Gerenciar projetos|Abrir, testar e organizar" \
             "2|🚦|Em execução|$ativos_desc" \
             "3|📦|Importar projeto|Pasta, arquivo ou ZIP" \
@@ -320,7 +321,8 @@ menu_principal() {
             "5|🛠️|Ambiente e ferramentas|Termux e pacotes" \
             "6|🔄|Atualizar Manager|GitHub main ou arquivo local" \
             "7|⚙️|Configurações|Preferências e manutenção" \
-            "8|❓|Ajuda e Sobre|Manual, versão e desenvolvedor"
+            "8|❓|Ajuda e Sobre|Manual, versão e desenvolvedor" \
+            "9|📂|Explorer de arquivos|Navegar, copiar, mover, renomear, excluir"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) gerenciar_projetos ;;
@@ -331,6 +333,7 @@ menu_principal() {
             6) atualizar_manager_local ;;
             7) menu_configuracoes ;;
             8) menu_ajuda_sobre_hub ;;
+            9) menu_explorer ;;
             0) echo -e "${C_GREEN}Até mais!${C_RESET}"; exit 0 ;;
             *) warn "Opção inválida."; pause ;;
         esac

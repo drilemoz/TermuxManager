@@ -4,7 +4,16 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.124  
+**Versão atual:** 1.0.125  
+
+### Explorer de arquivos (1.0.125)
+
+- Acesse **Menu principal → 9. Explorer de arquivos** para navegar por arquivos e diretórios acessíveis ao Termux, sem digitar comandos shell. As opções exibidas dependem das permissões do Android e do Termux; não concede acesso root.
+- Selecione um item pelo número. Em pastas: abrir, detalhes, copiar, mover, renomear ou excluir. Em arquivos: visualizar texto (somente leitura), detalhes, copiar, mover, renomear ou excluir.
+- Navegação paginada de 10 itens por tela, pastas antes de arquivos, incluindo arquivos ocultos. **U** sobe um nível, **N/A** troca a página, **?** abre atalhos para Home, Painel, Downloads, armazenamento e raiz do sistema. Os atalhos **H/P/D/S/R** também podem ser usados diretamente.
+- Ao escolher **Copiar** ou **Mover**, navegue até a pasta de destino e use **C (Colar)**. **X** limpa a seleção. **M** cria uma nova pasta; para renomear ou criar, digita-se apenas o novo nome, sem comandos.
+- **Segurança:** operações de exclusão exigem confirmação e não passam pela lixeira; substituições de nomes existentes são recusadas; cópia recursiva de pasta dentro dela mesma é bloqueada; raízes críticas e a instalação do Manager não podem ser removidas/movidas/renomeadas.
+- A visualização de arquivos de texto nunca executa scripts; o recurso não funciona como editor e não contorna as restrições de armazenamento do Android. Faça backup antes de mover ou excluir arquivos importantes.
 
 ### Menu de execução ajustado (1.0.124)
 
@@ -529,10 +538,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.124
-Tag: v1.0.124
-Release: Manager 1.0.124
-Pacote único: TermuxManager-v1.0.124.zip
+Versão: 1.0.125
+Tag: v1.0.125
+Release: Manager 1.0.125
+Pacote único: TermuxManager-v1.0.125.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

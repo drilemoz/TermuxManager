@@ -1,3 +1,10 @@
+## v1.0.125 (2026-10-18)
+
+- Adicionado **Explorer de arquivos** no menu principal (opção 9), com navegação por diretórios e arquivos do Termux, páginas de 10 itens, arquivos ocultos, detalhes e prévia textual em modo somente leitura.
+- Ações por menus: abrir pasta, copiar, mover e colar em outra pasta, renomear, excluir com confirmação e criar pasta. Atalhos para Home, Painel, Downloads, armazenamento compartilhado e raiz; nenhuma operação precisa de comandos shell.
+- Proteções: não sobrescreve destinos existentes, evita copiar pasta para seu próprio interior, protege diretórios críticos e arquivos internos do Manager, trata caminhos com espaços/acento/caracteres especiais e respeita as permissões do Android.
+- Testes de regressão para operação de arquivos, navegação por menu, exclusão com recusa, bloqueio de conflitos, links simbólicos e integração do menu principal.
+
 ## v1.0.124 (2026-10-18)
 
 - Execução de projeto com backend único (PHP, Laravel, Python ou API) recebe opção **1** diretamente, sem criar opção de frontend inexistente nem exigir digitar 2 fora da lista.
