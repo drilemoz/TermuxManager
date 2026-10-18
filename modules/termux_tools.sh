@@ -155,9 +155,10 @@ ambiente_dev_configurar() {
             ;;
         php)
             AMB_DEV_TITULO="PHP"; AMB_DEV_ICONE="🐘"
-            AMB_DEV_COMANDOS=(php composer)
-            AMB_DEV_ROTULOS=(PHP Composer)
-            AMB_DEV_PACOTES=(php composer git)
+            # Composer é opcional: PHP puro funciona só com o interpretador.
+            AMB_DEV_COMANDOS=(php)
+            AMB_DEV_ROTULOS=(PHP)
+            AMB_DEV_PACOTES=(php)
             ;;
         build)
             AMB_DEV_TITULO="Compilação"; AMB_DEV_ICONE="🔧"
@@ -426,15 +427,21 @@ instalar_gerenciadores_js() {
             por_npm+=("$p")
         fi
     done
-    [ ${#por_pkg[@]} -gt 0 ] && instalar_lista_pacotes "Gerenciadores JavaScript" "${por_pkg[@]}"
+    if [ ${#por_pkg[@]} -gt 0 ]; then
+        instalar_lista_pacotes "Gerenciadores JavaScript" "${por_pkg[@]}" || return $?
+    fi
     if [ ${#por_npm[@]} -gt 0 ]; then
         command -v npm >/dev/null 2>&1 || instalar_lista_pacotes "Node.js" nodejs || return 1
         cabecalho_tela "🌐 JavaScript" "Gerenciadores adicionais"
         caixa_simples "Instalação via npm" "Pacotes: ${por_npm[*]}" "Serão instalados globalmente."
         confirmar_acao "Instalar via npm?" "s" || return 0
-        npm install -g "${por_npm[@]}" >>"$TERMUX_SETUP_LOG" 2>&1 \
-            && ok "Gerenciadores JavaScript instalados." \
-            || error "Falha ao instalar gerenciadores JavaScript."
+        if npm install -g "${por_npm[@]}" >>"$TERMUX_SETUP_LOG" 2>&1; then
+            ok "Gerenciadores JavaScript instalados."
+        else
+            error "Falha ao instalar gerenciadores JavaScript."
+            pause
+            return 1
+        fi
         pause
     fi
     if [ ${#por_pkg[@]} -eq 0 ] && [ ${#por_npm[@]} -eq 0 ]; then
@@ -458,7 +465,7 @@ menu_web_dev() {
             2) instalar_lista_pacotes "Node.js" nodejs ;;
             3) instalar_gerenciadores_js ;;
             4) instalar_lista_pacotes "Git e GitHub" git gh ;;
-            5) instalar_lista_pacotes "Web completo" nodejs git curl wget gh ; instalar_gerenciadores_js ;;
+            5) instalar_lista_pacotes "Web completo" nodejs git curl wget gh && instalar_gerenciadores_js ;;
             0) return ;;
             *) feedback_curto "Opção inválida." ;;
         esac
@@ -493,6 +500,66 @@ menu_compilacao_dev() {
             1) instalar_lista_pacotes "Compilação básica" clang make pkg-config ;;
             2) instalar_lista_pacotes "CMake" cmake ;;
             3) instalar_lista_pacotes "Compilação completa" clang make cmake pkg-config ;;
+            0) return ;;
+            *) feedback_curto "Opção inválida." ;;
+        esac
+    done
+}
+
+diagnostico_php_local() {
+    local versao="não instalado" ext status pdo mysqli fileinfo zlib mysql_status
+    if command -v php >/dev/null 2>&1; then
+        versao="$(php -r 'echo PHP_VERSION;' 2>/dev/null || printf 'indisponível')"
+        ext="$(php -m 2>/dev/null || true)"
+        # Verifica módulos exatos; não confundir PDO com pdo_mysql.
+        pdo=$(printf '%s\n' "$ext" | grep -ixq 'PDO' && echo OK || echo ausente)
+        mysqli=$(printf '%s\n' "$ext" | grep -ixq 'mysqli' && echo OK || echo ausente)
+        fileinfo=$(printf '%s\n' "$ext" | grep -ixq 'fileinfo' && echo OK || echo ausente)
+        zlib=$(printf '%s\n' "$ext" | grep -ixq 'zlib' && echo OK || echo ausente)
+        status=$(printf '%s\n' "$ext" | grep -ixq 'pdo_mysql' && echo OK || echo ausente)
+    else
+        pdo=ausente; mysqli=ausente; fileinfo=ausente; zlib=ausente; status=ausente
+    fi
+    mysql_status="não instalado"
+    if command -v mariadbd >/dev/null 2>&1 || command -v mysqld >/dev/null 2>&1; then
+        mysql_status="Servidor instalado (não confirma execução)"
+    elif command -v mariadb >/dev/null 2>&1; then
+        mysql_status="Cliente instalado (servidor não verificado)"
+    fi
+    cabecalho_tela "🐘 Diagnóstico PHP" "Compatibilidade com sites PHP e IguaNews"
+    caixa_simples "PHP" \
+        "Versão: $versao" \
+        "PDO: $pdo" \
+        "pdo_mysql: $status" \
+        "mysqli: $mysqli" \
+        "fileinfo: $fileinfo" \
+        "zlib: $zlib" \
+        "Composer: $(status_comando_curto composer)"
+    caixa_simples "Banco de dados" \
+        "MariaDB: $mysql_status" \
+        "A instalação não inicializa nem abre o banco." \
+        "Não apaga dados existentes."
+    if [ "$status" != OK ] || [ "$fileinfo" != OK ]; then
+        caixa_simples "⚠ Requisitos do IguaNews" \
+            "São necessários PHP, pdo_mysql e fileinfo." \
+            "Use 'PHP básico' e revise o repositório se faltarem módulos."
+    fi
+    pause
+}
+
+menu_php_dev() {
+    while true; do
+        menu_unificado "🐘 Ambiente PHP" "PHP: $(status_comando_curto php) • Composer opcional" "[0] Voltar" \
+            "1|🐘|PHP básico|Interpretador para sites PHP puros" \
+            "2|📦|Composer|Somente projetos com composer.json" \
+            "3|🗄️|PHP + MariaDB|Base para portais PHP com MySQL" \
+            "4|🔎|Verificar PHP|PDO, pdo_mysql, fileinfo e banco"
+        ler_opcao
+        case "$RESPOSTA_MENU" in
+            1) instalar_lista_pacotes "PHP básico" php ;;
+            2) instalar_lista_pacotes "Composer" php composer ;;
+            3) instalar_lista_pacotes "PHP + MariaDB" php mariadb ;;
+            4) diagnostico_php_local ;;
             0) return ;;
             *) feedback_curto "Opção inválida." ;;
         esac
@@ -611,7 +678,7 @@ menu_instalar_ferramentas() {
             "6|🐹|Go|$(ambiente_status_comandos go)" \
             "7|🦀|Rust|$(ambiente_status_comandos cargo rustc)" \
             "8|💎|Ruby|$(ambiente_status_comandos ruby)" \
-            "9|🐘|PHP|$(ambiente_status_comandos php composer)" \
+            "9|🐘|PHP|$(ambiente_status_comandos php) • Composer opcional" \
             "A|🔧|Compilação|Clang, Make e CMake" \
             "B|💾|Bancos|SQLite, PostgreSQL e outros" \
             "C|📦|Arquivos e dados|ZIP, unzip e jq" \
@@ -627,7 +694,7 @@ menu_instalar_ferramentas() {
             6) instalar_lista_pacotes "Ambiente Go" golang git ;;
             7) instalar_lista_pacotes "Ambiente Rust" rust clang pkg-config git ;;
             8) instalar_lista_pacotes "Ambiente Ruby" ruby clang make pkg-config ;;
-            9) instalar_lista_pacotes "Ambiente PHP" php composer git ;;
+            9) menu_php_dev ;;
             [Aa]) menu_compilacao_dev ;;
             [Bb]) menu_bancos_dev ;;
             [Cc]) instalar_lista_pacotes "Arquivos e dados" zip unzip jq ;;
@@ -635,7 +702,7 @@ menu_instalar_ferramentas() {
             [Ee])
                 cabecalho_tela "📝 Instalação manual" "Use nomes válidos do pkg"
                 local -a manuais=()
-                read -rp "Pacotes separados por espaço: " -a manuais
+                read -rp "Pacotes separados por espaço: " -a manuais || true
                 [ ${#manuais[@]} -gt 0 ] && instalar_lista_pacotes "Pacotes selecionados" "${manuais[@]}"
                 ;;
             0) return ;;

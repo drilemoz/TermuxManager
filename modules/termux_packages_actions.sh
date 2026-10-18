@@ -171,10 +171,26 @@ pacote_ja_funcional() {
     esac
 }
 
+# Aceita somente nomes de pacotes Termux/Debian, nunca opções do apt ou URLs.
+# A seleção manual não pode transformar um nome em argumento do gerenciador.
+pacote_nome_valido() {
+    [[ "${1:-}" =~ ^[a-z0-9][a-z0-9+.-]{0,99}$ ]]
+}
+
+pacote_registrado_instalado() {
+    local pacote="${1:-}"
+    pacote_nome_valido "$pacote" || return 1
+    if command -v dpkg-query >/dev/null 2>&1; then
+        [ "$(dpkg-query -W -f='${Status}' "$pacote" 2>/dev/null)" = 'install ok installed' ]
+    else
+        dpkg -s "$pacote" 2>/dev/null | grep -Fxq 'Status: install ok installed'
+    fi
+}
+
 pacote_instalado_ou_funcional() {
     local pacote="${1:-}"
-    [ -n "$pacote" ] || return 1
-    pacote_ja_funcional "$pacote" || dpkg -s "$pacote" >/dev/null 2>&1
+    pacote_nome_valido "$pacote" || return 1
+    pacote_ja_funcional "$pacote" || pacote_registrado_instalado "$pacote"
 }
 
 comando_referencia_pacote() {
@@ -222,8 +238,24 @@ pacote_funcional_pos_instalacao() {
 
 instalar_lista_pacotes() {
     local titulo="$1"; shift
-    local pacotes=("$@") faltando=() indisponiveis=() p
-    local auto="${TERMUX_INSTALL_NONINTERACTIVE:-false}"
+    local -a pacotes=("$@") faltando=() indisponiveis=() falhados=() confirmados=() pulados=()
+    local auto="${TERMUX_INSTALL_NONINTERACTIVE:-false}" p rc p_rc escolha
+    local instalados=0 falhas=0
+
+    # Pacotes são argumentos diretos do apt: rejeitar opções e nomes malformados.
+    for p in "${pacotes[@]}"; do
+        if ! pacote_nome_valido "$p"; then
+            error "Nome de pacote inválido: $p"
+            log "ERROR" "Instalação recusada: nome de pacote inválido: $p"
+            [ "$auto" = true ] || [ "${WIZARD_MODE:-false}" = true ] || pause
+            return 2
+        fi
+    done
+    if [ "${#pacotes[@]}" -eq 0 ]; then
+        warn "Nenhum pacote selecionado."
+        return 1
+    fi
+
     detectar_variante_termux
     for p in "${pacotes[@]}"; do
         if pacote_instalado_ou_funcional "$p"; then
@@ -239,15 +271,16 @@ instalar_lista_pacotes() {
     if [ ${#faltando[@]} -eq 0 ]; then
         cabecalho_tela "🧰 Instalar ferramentas" "$titulo"
         if [ ${#indisponiveis[@]} -gt 0 ]; then
-            caixa_simples "ℹ Compatibilidade" \
+            caixa_simples "⚠ Ambiente incompleto" \
                 "Origem: $(termux_origem_resumida)" \
-                "Indisponíveis: ${#indisponiveis[@]}" \
-                "${indisponiveis[*]}"
+                "Não disponíveis: ${indisponiveis[*]}" \
+                "Revise o mirror e execute pkg update."
         else
             caixa_simples "✅ Nada a instalar" "Todos os componentes já estão disponíveis."
         fi
         if [ "$auto" != true ] && [ "${WIZARD_MODE:-false}" != true ]; then pause; fi
-        return 0
+        [ "${#indisponiveis[@]}" -eq 0 ]
+        return $?
     fi
 
     cabecalho_tela "🧰 Instalar ferramentas" "$titulo"
@@ -257,8 +290,8 @@ instalar_lista_pacotes() {
         "Pacotes ausentes: ${#faltando[@]}"
     caixa_simples "Instalação em lote" "${faltando[*]}"
     if [ ${#indisponiveis[@]} -gt 0 ]; then
-        caixa_simples "Compatibilidade" \
-            "Pacotes indisponíveis serão ignorados." \
+        caixa_simples "⚠ Compatibilidade" \
+            "Não disponíveis (ambiente ficará incompleto):" \
             "${indisponiveis[*]}"
     fi
     if [ "$auto" != true ] && [ "${WIZARD_MODE:-false}" != true ]; then
@@ -266,78 +299,70 @@ instalar_lista_pacotes() {
     fi
 
     mkdir -p "$(dirname "$TERMUX_SETUP_LOG")"
-    local rc=0 instalados=0 falhas=0 pulados=0 p_rc escolha
-
-    # Primeiro tenta tudo de uma vez. Isso reduz resolução repetida de
-    # dependências, abertura do apt e espera por lock entre cada pacote.
     if executar_pkg_monitorado "Instalando Ferramentas" 10 90 \
         "Pacotes: ${#faltando[@]}" "Instalação em lote pelo pkg." -- install -y "${faltando[@]}"; then
-        instalados=${#faltando[@]}
+        rc=0
     else
         rc=$?
-        if [ "$rc" -eq 130 ] && [ "${WIZARD_MODE:-false}" = true ]; then
-            encerrar_ui_termux
-            cabecalho_tela "⏸ Instalação pausada" "$titulo"
-            caixa_simples "Ctrl+C recebido" \
-                "O Manager continua aberto." \
-                "Você pode tentar de novo ou retomar depois."
-            printf '\n[1] Tentar novamente  [2] Retomar depois\n> '
-            IFS= read -r escolha
-            case "$escolha" in
-                1) instalar_lista_pacotes "$titulo" "${pacotes[@]}"; return $? ;;
-                *) return 130 ;;
-            esac
-        fi
-
-        # Um lote pode falhar por apenas um pacote. Repara o dpkg quando
-        # necessário e tenta somente os itens que ainda faltarem.
-        [ -n "$(dpkg --audit 2>/dev/null)" ] && reparar_dpkg_automaticamente "Reparando antes do fallback" || true
-        log "WARN" "Instalação em lote falhou para '$titulo'; iniciando fallback individual."
-        for p in "${faltando[@]}"; do
-            if pacote_instalado_ou_funcional "$p"; then
-                instalados=$((instalados + 1))
-                continue
-            fi
-            if executar_pkg_monitorado "Instalando Ferramentas" 10 95 \
-                "Fallback: $p" "Tentativa individual." -- install -y "$p"; then
-                instalados=$((instalados + 1))
-                continue
-            fi
-            p_rc=$?
-            if [ "$p_rc" -eq 130 ] && [ "${WIZARD_MODE:-false}" = true ]; then
-                encerrar_ui_termux
-                cabecalho_tela "⏸ Instalação pausada" "Pacote: $p"
-                printf '\n[1] Tentar novamente  [2] Pular  [3] Retomar depois\n> '
-                IFS= read -r escolha
-                case "$escolha" in
-                    1) TERMUX_INSTALL_NONINTERACTIVE="$auto" instalar_lista_pacotes "$titulo" "${pacotes[@]}"; return $? ;;
-                    2) pulados=$((pulados + 1)); continue ;;
-                    *) return 130 ;;
-                esac
-            fi
-            falhas=$((falhas + 1))
-            log "ERROR" "Falha ao instalar pacote Termux: $p"
-        done
+    fi
+    if [ "$rc" -eq 130 ]; then
+        # Nunca reiniciar automaticamente uma transação do dpkg interrompida.
+        log "WARN" "Instalação interrompida: $titulo"
+        return 130
     fi
 
+    # Mesmo com apt exit 0, não marcar pacote como instalado sem dpkg válido.
+    # Um lote malsucedido pode ter instalado parcialmente vários pacotes.
+    local -a pendentes=()
+    for p in "${faltando[@]}"; do
+        if pacote_instalado_ou_funcional "$p"; then
+            confirmados+=("$p")
+        else
+            pendentes+=("$p")
+        fi
+    done
+    if [ "${#pendentes[@]}" -gt 0 ]; then
+        [ -n "$(dpkg --audit 2>/dev/null)" ] && reparar_dpkg_automaticamente "Reparando antes do fallback" || true
+        log "WARN" "Pacotes pendentes para '$titulo'; iniciando fallback individual."
+        for p in "${pendentes[@]}"; do
+            if executar_pkg_monitorado "Instalando Ferramentas" 10 95 \
+                "Fallback: $p" "Tentativa individual." -- install -y "$p"; then
+                p_rc=0
+            else
+                p_rc=$?
+            fi
+            if [ "$p_rc" -eq 130 ]; then
+                log "WARN" "Instalação interrompida durante o pacote $p"
+                return 130
+            fi
+            if pacote_instalado_ou_funcional "$p"; then
+                confirmados+=("$p")
+            else
+                falhados+=("$p")
+                log "ERROR" "Falha ao instalar/verificar pacote: $p (exit=$p_rc)"
+            fi
+        done
+    fi
+    instalados=${#confirmados[@]}
+    falhas=${#falhados[@]}
     tela_operacao_termux "Instalando Ferramentas" 100 \
-        "Instalação concluída." \
-        "$instalados instalado(s) • $falhas falha(s) • $pulados pulado(s)" \
-        "✔ Processamento finalizado" \
-        "$([ "$falhas" -gt 0 ] && echo "⚠ Falhas: $falhas" || echo "✔ Nenhuma falha")" \
+        "Processamento finalizado." \
+        "$instalados confirmado(s) • $falhas falha(s)" \
+        "✔ Pacotes verificados no Termux" \
+        "$([ "$falhas" -gt 0 ] || [ "${#indisponiveis[@]}" -gt 0 ] && echo '⚠ Ambiente incompleto' || echo '✔ Nenhuma pendência')" \
         "Log: $(caminho_curto "$TERMUX_SETUP_LOG")"
-
-    if [ "$falhas" -eq 0 ]; then
+    if [ "$falhas" -eq 0 ] && [ "${#indisponiveis[@]}" -eq 0 ]; then
         caixa_simples "✅ $titulo" \
-            "Instalados: $instalados" \
-            "Indisponíveis: ${#indisponiveis[@]}" \
+            "Confirmados: $instalados" \
+            "Pacotes restantes: nenhum" \
             "Gerenciador: pkg do Termux"
     else
-        caixa_simples "⚠ $titulo" \
-            "Instalados: $instalados" \
-            "Falhas: $falhas" \
+        caixa_simples "⚠ $titulo • instalação incompleta" \
+            "Confirmados: $instalados" \
+            "Falhas: ${falhados[*]:-nenhuma}" \
+            "Indisponíveis: ${indisponiveis[*]:-nenhum}" \
             "Log: $(caminho_curto "$TERMUX_SETUP_LOG")"
     fi
     if [ "$auto" != true ] && [ "${WIZARD_MODE:-false}" != true ]; then pause; fi
-    [ "$falhas" -eq 0 ]
+    [ "$falhas" -eq 0 ] && [ "${#indisponiveis[@]}" -eq 0 ]
 }

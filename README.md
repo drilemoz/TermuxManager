@@ -4,7 +4,14 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.125  
+**Versão atual:** 1.0.126  
+
+### Auditoria da instalação de ferramentas (1.0.126)
+
+- Menu **Instalar ferramentas → PHP** agora separa **PHP básico** (sem Composer), **PHP + Composer**, **PHP + MariaDB** e **Diagnóstico PHP**. Composer é opcional para projetos PHP simples e o painel de ambientes não o marca como requisito obrigatório.
+- Diagnóstico mostra a versão do PHP, extensões `PDO`, `pdo_mysql`, `mysqli`, `fileinfo`, `zlib` e presença do cliente/servidor MariaDB. A instalação do pacote **não inicia nem inicializa o banco**, preservando dados existentes. Para IguaNews, é necessário configurar um banco e usuário próprios separadamente.
+- O instalador recusa nomes de pacote malformados (inclusive argumentos começando com `-`), confere o estado de cada pacote após o apt, tenta fallback individual somente quando restarem pendências e não informa sucesso se houver pacote falho ou indisponível.
+- Corrigida a propagação de falhas ao instalar gerenciadores JavaScript por `pkg` ou `npm`. Atualização da documentação sem alteração dos projetos do usuário.
 
 ### Explorer de arquivos (1.0.125)
 
@@ -538,10 +545,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.125
-Tag: v1.0.125
-Release: Manager 1.0.125
-Pacote único: TermuxManager-v1.0.125.zip
+Versão: 1.0.126
+Tag: v1.0.126
+Release: Manager 1.0.126
+Pacote único: TermuxManager-v1.0.126.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

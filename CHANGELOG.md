@@ -1,3 +1,10 @@
+## v1.0.126 (2026-10-18)
+
+- Revisado o instalador de ferramentas Termux, com PHP básico separado de Composer opcional, pacote PHP + MariaDB e diagnóstico de extensões PHP (`PDO`, `pdo_mysql`, `mysqli`, `fileinfo`, `zlib`).
+- A instalação de pacotes valida os nomes antes de invocar apt, verifica individualmente os pacotes após instalação em lote, executa fallback para pendentes e informa falhas/indisponibilidades sem falso sucesso.
+- Corrigida a propagação de falhas ao instalar pnpm/Yarn por pkg/npm e na opção Web completo.
+- Testes específicos de regressão para nomes inválidos, lote parcialmente instalado, pacote indisponível, PHP sem Composer e diagnóstico do IguaNews. Preservados projetos e bancos existentes.
+
 ## v1.0.125 (2026-10-18)
 
 - Adicionado **Explorer de arquivos** no menu principal (opção 9), com navegação por diretórios e arquivos do Termux, páginas de 10 itens, arquivos ocultos, detalhes e prévia textual em modo somente leitura.
