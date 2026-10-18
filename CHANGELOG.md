@@ -1,3 +1,10 @@
+## v1.0.129 (2026-10-18)
+
+- Corrigido bloqueio indevido do instalador phpMyAdmin 5.2.3 quando a extensão PHP `sodium` não está ativa. Essa versão usa a biblioteca `sodium_compat` e não a exige nativamente; as demais extensões continuam sendo verificadas.
+- Diagnóstico diferencia a extensão `sodium` opcional das dependências exigidas pelo instalador.
+- Diagnóstico MariaDB mostra separadamente socket local (usado pelo phpMyAdmin) e TCP `127.0.0.1:3306` (usado pelo IguaNews). Não reinicia nem altera serviços/bancos existentes automaticamente.
+- Nova regressão com PHP sem `sodium` e MariaDB ativo somente via socket; preservadas instalação oficial, SHA-256, demais módulos e configurações anteriores.
+
 ## v1.0.128 (2026-10-18)
 
 - Verificação automática opcional de atualizações GitHub ao abrir `mm`/`manager`, com intervalo de 24 horas após sucesso e de 6 horas após falha, sem necessidade de digitar comandos.

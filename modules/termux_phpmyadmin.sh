@@ -20,12 +20,21 @@ pma_instalado() {
 
 pma_dependencias_php() {
     command -v php >/dev/null 2>&1 || return 1
-    php -r 'foreach (["mysqli", "mbstring", "sodium", "session", "json", "ctype", "filter", "iconv"] as $e) { if (!extension_loaded($e)) { fwrite(STDERR, "Extensão PHP ausente: $e\n"); exit(1); } }' 2>&1
+    # phpMyAdmin 5.2.3 utiliza paragonie/sodium_compat quando a extensão
+    # sodium nativa não está carregada. Não bloquear a instalação por isso.
+    php -r 'foreach (["mysqli", "mbstring", "session", "json", "ctype", "filter", "iconv"] as $e) { if (!extension_loaded($e)) { fwrite(STDERR, "Extensão PHP ausente: $e\n"); exit(1); } }' 2>&1
 }
 
 pma_db_ativo() {
     command -v mariadb-admin >/dev/null 2>&1 || return 1
     mariadb-admin --protocol=socket --socket="$(pma_socket)" ping >/dev/null 2>&1
+}
+
+# IguaNews conecta a 127.0.0.1:3306 (TCP), enquanto phpMyAdmin usa o
+# socket. Uma conexão pelo socket NÃO garante que o servidor aceite TCP.
+pma_db_tcp_ativo() {
+    command -v mariadb-admin >/dev/null 2>&1 || return 1
+    mariadb-admin --protocol=tcp -h 127.0.0.1 -P 3306 --connect-timeout=3 ping >/dev/null 2>&1
 }
 
 pma_pid_web() {
@@ -165,7 +174,14 @@ pma_iniciar_db() {
         pause; return 1
     fi
     if pma_db_ativo; then
-        caixa_simples "✅ MariaDB ativo" "Socket local: $(caminho_curto "$(pma_socket)")" "Nenhum banco foi alterado."
+        if pma_db_tcp_ativo; then
+            caixa_simples "✅ MariaDB ativo" "Socket e TCP 127.0.0.1:3306 respondendo." "Nenhum banco foi alterado."
+        else
+            caixa_simples "⚠ MariaDB ativo apenas por socket" \
+                "O phpMyAdmin pode funcionar, mas o IguaNews precisa de TCP 127.0.0.1:3306." \
+                "Verifique skip-networking/bind-address na configuração MariaDB." \
+                "Não reiniciamos nem alteramos bancos automaticamente."
+        fi
         pause; return 0
     fi
     dbdir="$(pma_db_data)"; socket="$(pma_socket)"
@@ -182,7 +198,13 @@ pma_iniciar_db() {
     pid=$!
     for ((i=0;i<10;i++)); do
         if pma_db_ativo; then
-            ok "MariaDB ativo no aparelho."
+            if pma_db_tcp_ativo; then
+                ok "MariaDB ativo: socket e TCP 127.0.0.1:3306."
+            else
+                caixa_simples "⚠ MariaDB iniciou" \
+                    "Socket responde, mas TCP 127.0.0.1:3306 não foi confirmado." \
+                    "O IguaNews poderá continuar sem conexão. Veja o diagnóstico."
+            fi
             pause; return 0
         fi
         kill -0 "$pid" 2>/dev/null || break
@@ -307,28 +329,35 @@ EOF_SQL
 )
 
 pma_diagnostico() {
-    local mods="" ext pendentes="" socket
+    local ext pendentes="" socket sodium_status="indisponível" tcp_status="não responde"
     socket="$(pma_socket)"
     if command -v php >/dev/null 2>&1; then
-        for ext in mysqli mbstring sodium session json ctype filter iconv; do
-            if php -r "exit(extension_loaded('$ext') ? 0 : 1);" 2>/dev/null; then
-                mods+="${ext}: OK; "
-            else
+        for ext in mysqli mbstring session json ctype filter iconv; do
+            if ! php -r "exit(extension_loaded('$ext') ? 0 : 1);" 2>/dev/null; then
                 pendentes+="${ext} "
             fi
         done
+        if php -r 'exit(extension_loaded("sodium") ? 0 : 1);' 2>/dev/null; then
+            sodium_status="ativa"
+        else
+            sodium_status="ausente (opcional no phpMyAdmin 5.2.3)"
+        fi
     else
         pendentes="php (interpretador)"
     fi
+    pma_db_tcp_ativo && tcp_status="respondendo" || true
     cabecalho_tela "🔎 phpMyAdmin" "Diagnóstico local"
     caixa_simples "Ambiente" \
         "PHP: $(command -v php >/dev/null 2>&1 && php -r 'echo PHP_VERSION;' || printf ausente)" \
-        "Extensões faltantes: ${pendentes:-nenhuma}" \
-        "MariaDB: $(pma_db_ativo && printf ativo || printf parado)" \
+        "Extensões obrigatórias ausentes: ${pendentes:-nenhuma}" \
+        "Sodium: $sodium_status" \
+        "MariaDB (socket): $(pma_db_ativo && printf ativo || printf parado)" \
+        "MariaDB (TCP 127.0.0.1:3306): $tcp_status" \
         "Socket: $(caminho_curto "$socket")" \
         "phpMyAdmin: $(pma_instalado && printf instalado || printf ausente)" \
         "Servidor web: $(pma_web_ativo && printf ativo || printf parado)"
     caixa_simples "Acesso" "URL: $(pma_url_local)" "Somente loopback (127.0.0.1)." \
+        "IguaNews exige conexão TCP ao MariaDB na porta 3306." \
         "Log web: $(caminho_curto "$PMA_ROOT/web.log")" "Log banco: $(caminho_curto "$PMA_ROOT/mariadb.log")"
     pause
 }
