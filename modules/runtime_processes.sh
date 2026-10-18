@@ -707,47 +707,190 @@ tela_execucao() {
     done
 }
 
+# ==========================================================================
+# CENTRAL DE EXECUÇÃO — serviços locais e projetos (v1.0.130)
+# ==========================================================================
+
+# PHP e Node são ambientes instalados, NÃO daemons. O indicador de execução
+# pertence aos projetos/PIDs monitorados. MariaDB e phpMyAdmin têm verificações
+# próprias, pois não usam os PID files dos projetos.
+central_status_servicos() {
+    CENTRAL_PHP_STATUS="não instalado"
+    CENTRAL_NODE_STATUS="não instalado"
+    CENTRAL_DB_STATUS="não instalado"
+    CENTRAL_PMA_STATUS="não instalado"
+    comando_existe php && CENTRAL_PHP_STATUS="instalado" || true
+    comando_existe node && CENTRAL_NODE_STATUS="instalado" || true
+
+    if comando_existe mariadbd && comando_existe mariadb-admin; then
+        CENTRAL_DB_STATUS="parado"
+        if pma_db_ativo; then
+            if pma_db_tcp_ativo; then
+                CENTRAL_DB_STATUS="ativo • TCP 3306 OK"
+            else
+                CENTRAL_DB_STATUS="ativo • TCP 3306 indisponível"
+            fi
+        elif pma_db_tcp_ativo; then
+            CENTRAL_DB_STATUS="TCP 3306 responde • socket não confirmado"
+        fi
+    fi
+
+    if pma_instalado; then
+        CENTRAL_PMA_STATUS="instalado • parado"
+        pma_web_ativo && CENTRAL_PMA_STATUS="servidor ativo • 127.0.0.1:8081" || true
+    fi
+}
+
+# Seleciona apenas projetos cuja stack detectada realmente usa o ambiente.
+# Um interpretador PHP ou Node instalado, sozinho, não constitui projeto web.
+central_projeto_compativel() {
+    local dir="$1" ambiente="$2"
+    detectar_estrutura_projeto "$dir"
+    case "$ambiente" in
+        php)
+            case "${FRONT_FRAMEWORK:-}:${BACK_FRAMEWORK:-}" in
+                PHP:*|Laravel:*|*:PHP|*:Laravel) return 0 ;;
+            esac
+            ;;
+        node)
+            case "${FRONT_GERENCIADOR:-}:${BACK_GERENCIADOR:-}" in
+                npm:*|pnpm:*|yarn:*|*:npm|*:pnpm|*:yarn) return 0 ;;
+            esac
+            ;;
+    esac
+    return 1
+}
+
+central_iniciar_projeto() {
+    local ambiente="$1" entrada dir escolha i=1 label
+    local -a candidatos=() itens=()
+    if [ "$ambiente" = php ]; then
+        if ! comando_existe php; then
+            caixa_simples "PHP não instalado" "Instale PHP pelo menu Ambiente e ferramentas."
+            pause; return 0
+        fi
+        label="PHP"
+    elif [ "$ambiente" = node ]; then
+        if ! comando_existe node; then
+            caixa_simples "Node.js não instalado" "Instale Node.js pelo menu Ambiente e ferramentas."
+            pause; return 0
+        fi
+        label="Node.js"
+    else
+        return 1
+    fi
+
+    descobrir_entradas
+    for entrada in "${PROJETOS_ENCONTRADOS[@]}"; do
+        dir="${entrada%%|*}"
+        if central_projeto_compativel "$dir" "$ambiente"; then
+            candidatos+=("$dir")
+            nome_amigavel_projeto "$dir"
+            itens+=("$i|📦|$NOME_PROJETO|$(caminho_curto "$dir")")
+            i=$((i+1))
+        fi
+    done
+    if [ "${#candidatos[@]}" -eq 0 ]; then
+        caixa_simples "Nenhum projeto $label encontrado" \
+            "Importe um projeto ou verifique a estrutura no menu Meus projetos." \
+            "Não foi iniciado nenhum processo."
+        pause; return 0
+    fi
+    menu_unificado "🚀 Iniciar projeto $label" "Selecione o projeto pelo número" \
+        "[0] Cancelar  •  [número] Selecionar" "${itens[@]}"
+    ler_opcao; escolha="$RESPOSTA_MENU"
+    [ "$escolha" = 0 ] && return 0
+    if [[ "$escolha" =~ ^[0-9]+$ ]] && [ "$escolha" -ge 1 ] && [ "$escolha" -le ${#candidatos[@]} ]; then
+        # Reutiliza toda a validação de dependências, permissões, confirmação,
+        # PID e health checks da execução normal do projeto.
+        testar_projeto "${candidatos[$((escolha-1))]}"
+    else
+        warn "Opção inválida."; pause
+    fi
+}
+
+central_atalho_phpmyadmin() {
+    if pma_web_ativo; then
+        pma_parar_web
+    elif ! pma_instalado; then
+        caixa_simples "phpMyAdmin não instalado" \
+            "O instalador seguro está disponível em Ambiente e ferramentas > PHP > phpMyAdmin."
+        pause
+    else
+        pma_iniciar_web
+    fi
+}
+
+central_abrir_phpmyadmin() {
+    if pma_web_ativo; then
+        pma_abrir_web
+    else
+        caixa_simples "phpMyAdmin parado" "Inicie o phpMyAdmin pelo atalho [M] antes de abrir."
+        pause
+    fi
+}
+
 menu_processos_ativos() {
     while true; do
         limpar_pidfiles_inativos
-        local nomes=() pf nome i=1
+        local nomes=() pf nome i=1 comp porta rotulo estado icone detalhe
         for pf in "$PID_DIR"/*.pid; do
             [ -e "$pf" ] || continue
             pid_ativo "$pf" || continue
             nomes+=("$(basename "$pf" .pid)")
         done
+        central_status_servicos
+        cabecalho_tela "🚦 Central de execução" \
+            "${#nomes[@]} componente(s) de projetos gerenciados"
         if [ ${#nomes[@]} -eq 0 ]; then
-            cabecalho_tela "🚦 Projetos em execução" "Nenhum processo gerenciado está ativo"
-            caixa_simples "📭 Ambiente livre" "Inicie um projeto pelo menu de gerenciamento."
-            pause; return
+            caixa_simples "📭 Projetos" "Nenhum processo de projeto gerenciado está ativo."
+        else
+            caixa_linha_topo
+            for nome in "${nomes[@]}"; do
+                comp="$(componente_processo "$nome")"
+                [ "$comp" = frontend ] && comp="Frontend"
+                [ "$comp" = backend ] && comp="Backend"
+                rotulo="$(rotulo_processo "$nome")"
+                estado_servidor_processo "$nome" >/dev/null 2>&1 || true
+                porta="$PORTA_PROCESSO"; estado="$ESTADO_PROCESSO"; icone="$ICONE_PROCESSO"
+                if porta_valida "$porta"; then
+                    detalhe="$comp • PID $(cat "$PID_DIR/${nome}.pid") • Porta $porta • $estado"
+                else
+                    detalhe="$comp • PID $(cat "$PID_DIR/${nome}.pid") • $estado"
+                fi
+                menu_opcao "$i" "$icone" "$rotulo" "$detalhe"
+                i=$((i+1))
+            done
+            caixa_linha_baixo
         fi
-        cabecalho_tela "🚦 Projetos em execução" "${#nomes[@]} componente(s) ativo(s)"
+
         caixa_linha_topo
-        for nome in "${nomes[@]}"; do
-            local comp porta rotulo estado icone detalhe
-            comp="$(componente_processo "$nome")"
-            [ "$comp" = frontend ] && comp="Frontend"
-            [ "$comp" = backend ] && comp="Backend"
-            rotulo="$(rotulo_processo "$nome")"
-            estado_servidor_processo "$nome" >/dev/null 2>&1 || true
-            porta="$PORTA_PROCESSO"; estado="$ESTADO_PROCESSO"; icone="$ICONE_PROCESSO"
-            if porta_valida "$porta"; then
-                detalhe="$comp • PID $(cat "$PID_DIR/${nome}.pid") • Porta $porta • $estado"
-            else
-                detalhe="$comp • PID $(cat "$PID_DIR/${nome}.pid") • $estado"
-            fi
-            menu_opcao "$i" "$icone" "$rotulo" "$detalhe"
-            i=$((i+1))
-        done
+        menu_opcao "P" "🐘" "Projetos PHP" "PHP: $CENTRAL_PHP_STATUS • iniciar projeto"
+        menu_opcao "N" "🟢" "Projetos Node.js" "Node: $CENTRAL_NODE_STATUS • iniciar projeto"
+        menu_opcao "D" "🗄️" "Iniciar / verificar MariaDB" "$CENTRAL_DB_STATUS"
+        menu_opcao "M" "🌐" "Iniciar / parar phpMyAdmin" "$CENTRAL_PMA_STATUS"
+        menu_opcao "W" "📱" "Abrir phpMyAdmin" "http://127.0.0.1:8081 (somente local)"
+        menu_opcao "R" "🔄" "Atualizar estados" "Consultar projetos e serviços novamente"
         caixa_linha_baixo
-        rodape_atalhos "[0] Voltar  •  [A] Parar todos  •  [número] Gerenciar"
+        rodape_atalhos "[0] Voltar • [P/N/D/M/W/R] Serviços • [A] Parar projetos • [número] Gerenciar"
         ler_opcao
-        case "$RESPOSTA_MENU" in
+        case "${RESPOSTA_MENU,,}" in
             0) return ;;
-            a|A)
-                confirmar_acao "Encerrar todos os processos gerenciados?" || continue
-                for nome in "${nomes[@]}"; do parar_processo "$nome"; done
-                pause
+            p) central_iniciar_projeto php ;;
+            n) central_iniciar_projeto node ;;
+            d) pma_iniciar_db || true ;;
+            m) central_atalho_phpmyadmin ;;
+            w) central_abrir_phpmyadmin ;;
+            r) continue ;;
+            a)
+                if [ "${#nomes[@]}" -eq 0 ]; then
+                    caixa_simples "Sem projetos ativos" "Nenhum processo gerenciado será encerrado." \
+                        "O MariaDB e o phpMyAdmin não são afetados por esta opção."
+                    pause
+                elif confirmar_acao "Encerrar apenas os processos de projetos gerenciados?"; then
+                    for nome in "${nomes[@]}"; do parar_processo "$nome" || true; done
+                    pause
+                fi
                 ;;
             *)
                 if [[ "$RESPOSTA_MENU" =~ ^[0-9]+$ ]] && [ "$RESPOSTA_MENU" -ge 1 ] && [ "$RESPOSTA_MENU" -le ${#nomes[@]} ]; then
@@ -759,4 +902,3 @@ menu_processos_ativos() {
         esac
     done
 }
-

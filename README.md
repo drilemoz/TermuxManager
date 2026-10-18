@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.129  
+**Versão atual:** 1.0.130  
 
 ### Verificação automática opcional na abertura (1.0.129)
 
@@ -565,7 +565,7 @@ O padrão oficial é:
 Versão: 1.0.129
 Tag: v1.0.129
 Release: Manager 1.0.129
-Pacote único: TermuxManager-v1.0.129.zip
+Pacote único: TermuxManager-v1.0.130.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
@@ -772,3 +772,7 @@ O Manager **não usa `push --force` automaticamente**. Se o remoto tiver histór
 ### Reparo automático de dependências
 
 No teste de projetos Node, o Manager valida `node_modules` antes de reutilizar o cache. Se detectar uma instalação inconsistente ou se o servidor falhar com `MODULE_NOT_FOUND`, a assinatura é invalidada e o Manager tenta um reparo limpo uma única vez. Projetos com lockfile usam `npm ci`; sem lockfile, `node_modules` é recriado com `npm install`.
+
+### Central de execução (v1.0.130)
+
+No menu principal, escolha **2. Central de execução** para ver projetos monitorados e o estado independente das ferramentas locais. Atalhos: `P` seleciona projetos PHP; `N` seleciona projetos Node; `D` verifica/inicia MariaDB; `M` inicia ou encerra o webserver phpMyAdmin; `W` abre o phpMyAdmin local; `R` atualiza a tela. Se houver processos gerenciados, escolha seu número para ver logs e parar individualmente. `A` encerra somente os processos gerenciados de projetos, após confirmação, não os bancos. PHP e Node são executáveis, não servidores sempre ativos.

@@ -1,3 +1,12 @@
+## v1.0.130 (2026-10-18)
+
+- **Em execução** virou **Central de execução**, mantendo a lista de componentes gerenciados com PID, porta, estado, logs e parada individuais. A tela deixa de encerrar automaticamente quando não há projetos ativos.
+- Atalhos rápidos [P] PHP e [N] Node.js listam somente projetos compatíveis para selecionar por número. Reutilizam a rotina de validação e execução existente; PHP/Node instalados não são tratados como servidores em execução.
+- Atalho [D] inicia ou verifica MariaDB usando a rotina existente (socket e TCP 3306), sem tocar nos bancos existentes; [M] inicia ou para somente o phpMyAdmin instalado; [W] abre o navegador local; [R] atualiza os estados.
+- O status separa *instalado*, *parado* e *ativo* e identifica MariaDB ativo só por socket, sem confundir com TCP disponível para IguaNews.
+- [A] continua encerrando exclusivamente processos gerenciados de projetos mediante confirmação. Serviços externos e os bancos MariaDB são preservados.
+- Testes de menu vazio, seleção de projetos por stack, atualização, atalhos, status de serviços e proteção contra operações indevidas.
+
 ## v1.0.129 (2026-10-18)
 
 - Corrigido bloqueio indevido do instalador phpMyAdmin 5.2.3 quando a extensão PHP `sodium` não está ativa. Essa versão usa a biblioteca `sodium_compat` e não a exige nativamente; as demais extensões continuam sendo verificadas.

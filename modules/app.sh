@@ -315,7 +315,7 @@ menu_principal() {
         menu_unificado "🧰 MANAGER.SH — VERSÃO $MANAGER_VERSION" "$resumo_status" \
             "[0] Sair  •  [1–9] Selecionar" \
             "1|📁|Gerenciar projetos|Abrir, testar e organizar" \
-            "2|🚦|Em execução|$ativos_desc" \
+            "2|🚦|Central de execução|Projetos, PHP, Node, MariaDB e phpMyAdmin" \
             "3|📦|Importar projeto|Pasta, arquivo ou ZIP" \
             "4|🐧|Linux no celular|Distros, PRoot e Termux:X11" \
             "5|🛠️|Ambiente e ferramentas|Termux e pacotes" \

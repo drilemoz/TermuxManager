@@ -152,8 +152,11 @@ ajuda_execucao() {
         "A porta é detectada pelo processo e seus filhos." \
         "Logs são usados apenas como fallback estrito com :porta explícita."
     echo
-    caixa_simples "Projetos em execução" \
-        "A tela reutiliza a porta validada e mostra PID, logs e ações de parada."
+    caixa_simples "Central de execução" \
+        "Menu 2: mostra PID, porta, logs e parada dos projetos em execução." \
+        "P: projeto PHP; N: projeto Node; D: verificar/iniciar MariaDB." \
+        "M: iniciar/parar phpMyAdmin; W: abrir no navegador; R: atualizar." \
+        "A: parar só os projetos gerenciados após confirmação (sem parar banco)."
     echo
     caixa_simples "Projeto não abriu" \
         "Confira backend/.env, frontend/.env e os logs em ~/Painel/.logs."
