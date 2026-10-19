@@ -8,7 +8,7 @@ O projeto usa Versionamento Semântico: `MAJOR.MINOR.PATCH`.
 - **MINOR:** nova funcionalidade compatível;
 - **PATCH:** correção, documentação ou melhoria visual sem quebra de compatibilidade.
 
-Versão atual de referência: `1.0.130`.
+Versão atual de referência: `1.0.131`.
 
 ## Padrão da release
 
@@ -25,10 +25,10 @@ Integridade: MANIFEST.json dentro do pacote
 Para a versão atual:
 
 ```text
-Versão interna: 1.0.130
-Tag: v1.0.130
-Título: Manager 1.0.130
-Pacote único: TermuxManager-v1.0.130.zip
+Versão interna: 1.0.131
+Tag: v1.0.131
+Título: Manager 1.0.131
+Pacote único: TermuxManager-v1.0.131.zip
 Integridade: MANIFEST.json dentro do pacote
 ```
 
@@ -102,6 +102,10 @@ A integração GitHub deve registrar falhas em `~/.termux-manager/logs/github.lo
 
 A branch `main` é o canal estável usado pela atualização automática do Manager. Cada alteração publicada na `main` deve incrementar a versão e manter `MANIFEST.json`, README e CHANGELOG sincronizados. O Manager consulta o manifesto remoto, valida os hashes do arquivo baixado e cria backup antes de substituir a instalação atual.
 
-#### Central de execução 1.0.130
+#### Central de execução 1.0.131
 
 Menu 2 agora reúne estado e ações locais dos projetos PHP, Node, MariaDB e phpMyAdmin, separando instalados de ativos e reaproveitando os fluxos existentes com confirmações e PID seguro. Não altera databases nem reinicia MariaDB ao encerrar projetos.
+
+#### Navegação para importar arquivos 1.0.131
+
+No assistente Importar, abrir um diretório navega nele, sem acionar uma cópia. Arquivos podem ser localizados em subpastas de Downloads e em outros caminhos legíveis pelo Termux. Uma pasta só é selecionada como projeto após o comando explícito [I]. Foram adicionados paginação, retorno, atalhos de local e cancelamento, com cobertura de testes e sem alterar o motor de cópia de projetos.

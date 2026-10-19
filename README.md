@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.130  
+**Versão atual:** 1.0.131  
 
 ### Verificação automática opcional na abertura (1.0.129)
 
@@ -437,6 +437,16 @@ O Termux:X11 possui duas partes: o pacote companion dentro do Termux e o aplicat
 
 A recomendação do desktop acompanha o perfil calculado pelo Manager: aparelhos básicos priorizam LXDE/Openbox/i3; intermediários destacam XFCE/LXQt; aparelhos com mais margem recebem XFCE/LXQt/MATE como opções recomendadas e podem testar KDE Plasma. GNOME continua disponível como opção avançada, pois costuma depender mais de serviços de sistema que não existem normalmente em PRoot.
 
+### Localizador de arquivos da importação (1.0.131)
+
+Em **Projetos → Importar**, o assistente começa em Downloads, mas permite navegar em todas as pastas legíveis do Termux. Ao selecionar um **diretório**, você entra nele em vez de iniciar a cópia. Ao selecionar um **ZIP**, é possível extrair e importar ou copiar o pacote como arquivo. Para importar uma **pasta inteira**, entre nela e pressione **I**.
+
+- **0:** subir um nível; **X:** cancelar a seleção.
+- **D:** Downloads; **A:** armazenamento compartilhado do Android; **H:** Home; **P:** Painel; **R:** raiz do sistema (somente diretórios permitidos pelo Android).
+- **+ / -:** próxima página / página anterior de dez itens.
+
+Não é necessário mover ZIPs de subpastas para a raiz de Downloads. A opção **I** não permite importar acidentalmente as pastas principais de Downloads, Home ou Painel. Permissões continuam determinadas pelo Android; quando necessário, execute a configuração de acesso ao armazenamento.
+
 ## Importação de projetos
 
 A origem padrão da importação é sempre a própria pasta **Downloads**. O Manager não entra automaticamente em `Downloads/projetos`, então um ZIP recém-baixado aparece imediatamente na lista sem precisar ser movido antes.
@@ -565,7 +575,7 @@ O padrão oficial é:
 Versão: 1.0.129
 Tag: v1.0.129
 Release: Manager 1.0.129
-Pacote único: TermuxManager-v1.0.130.zip
+Pacote único: TermuxManager-v1.0.131.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
@@ -773,6 +783,6 @@ O Manager **não usa `push --force` automaticamente**. Se o remoto tiver histór
 
 No teste de projetos Node, o Manager valida `node_modules` antes de reutilizar o cache. Se detectar uma instalação inconsistente ou se o servidor falhar com `MODULE_NOT_FOUND`, a assinatura é invalidada e o Manager tenta um reparo limpo uma única vez. Projetos com lockfile usam `npm ci`; sem lockfile, `node_modules` é recriado com `npm install`.
 
-### Central de execução (v1.0.130)
+### Central de execução (v1.0.131)
 
 No menu principal, escolha **2. Central de execução** para ver projetos monitorados e o estado independente das ferramentas locais. Atalhos: `P` seleciona projetos PHP; `N` seleciona projetos Node; `D` verifica/inicia MariaDB; `M` inicia ou encerra o webserver phpMyAdmin; `W` abre o phpMyAdmin local; `R` atualiza a tela. Se houver processos gerenciados, escolha seu número para ver logs e parar individualmente. `A` encerra somente os processos gerenciados de projetos, após confirmação, não os bancos. PHP e Node são executáveis, não servidores sempre ativos.

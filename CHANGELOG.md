@@ -1,3 +1,11 @@
+## v1.0.131 (2026-10-18)
+
+- A etapa 1 da importação agora é um navegador de arquivos: escolher uma pasta entra nela; o conteúdo não é tratado automaticamente como um projeto. Para importar uma pasta completa, use o atalho [I] dentro dela.
+- ZIPs e arquivos avulsos podem ser selecionados em subpastas de Downloads e em outros caminhos acessíveis ao Termux (Android compartilhado, Home, Painel e raiz), sem digitar comandos.
+- Navegação por [0] para subir, [D/A/H/P/R] para locais, [+/-] para páginas de dez itens e [X] para cancelar. As subpastas são listadas antes dos arquivos, incluindo itens ocultos.
+- Proteção contra importação acidental de Downloads, Home e Painel inteiros; mantidos tratamento dos destinos e conflitos, validação de ZIP e pós-importação.
+- Testes de ZIP aninhado, pastas com espaços, paginação, voltar, importar pasta explicitamente, atalhos Android e cancelamento.
+
 ## v1.0.130 (2026-10-18)
 
 - **Em execução** virou **Central de execução**, mantendo a lista de componentes gerenciados com PID, porta, estado, logs e parada individuais. A tela deixa de encerrar automaticamente quando não há projetos ativos.

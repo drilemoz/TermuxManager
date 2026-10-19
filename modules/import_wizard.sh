@@ -2,7 +2,7 @@
 # Assistente de importação: origem, ZIP, destino, conflitos e pós-importação.
 
 wizard_resetar_importacao() {
-    WIZ_ORIGEM_BASE=""; WIZ_ORIGEM=""; WIZ_TIPO=""; WIZ_MODO=""
+    WIZ_ORIGEM_BASE=""; WIZ_NAV_PAGE=0; WIZ_ORIGEM=""; WIZ_TIPO=""; WIZ_MODO=""
     WIZ_DESTINO=""; WIZ_ACHATAR=false; WIZ_SOBRESCREVER=false
     WIZ_DESTINO_FIXO=false; WIZ_ZIP_NOME=""; WIZ_ORIGEM_ORIGINAL=""
     WIZ_NOME_PROJETO=""; WIZ_DESTINO_PROJETO=false; WIZ_CAMADA_EXTERNA=""
@@ -12,41 +12,147 @@ wizard_resetar_importacao() {
 
 wizard_localizar_origem() {
     check_storage_access || return 1
-    # A origem padrão é sempre a raiz de Downloads. Não entra automaticamente
-    # em Downloads/projetos: arquivos recém-baixados devem aparecer no assistente
-    # sem exigir que o usuário mova o pacote antes de importar.
+    # Downloads é apenas o ponto de partida, não um limite de navegação.
     WIZ_ORIGEM_BASE="$DOWNLOADS_DIR"
+    WIZ_NAV_PAGE=0
+}
+
+wizard_nome_arquivo_visivel() {
+    # Não deixa nomes do armazenamento imprimirem controles no terminal.
+    local nome="${1##*/}"
+    nome="${nome//$'\n'/ }"
+    nome="${nome//$'\r'/ }"
+    nome="${nome//$'\t'/ }"
+    nome="${nome//$'\033'/ }"
+    printf '%s' "$nome"
+}
+
+wizard_ir_para_diretorio() {
+    local alvo="$1" resolvido
+    [ -d "$alvo" ] && [ -r "$alvo" ] && [ -x "$alvo" ] || {
+        warn "Pasta inacessível. Confira a permissão de armazenamento."
+        return 1
+    }
+    resolvido="$(cd -P -- "$alvo" 2>/dev/null && pwd -P)" || return 1
+    WIZ_ORIGEM_BASE="$resolvido"
+    WIZ_NAV_PAGE=0
+}
+
+wizard_pasta_importavel() {
+    # Evita importar acidentalmente o conteúdo de Downloads, Home ou Painel
+    # ao pressionar I; é necessário navegar até a pasta do projeto.
+    local dir="$1" item canon
+    canon="$(cd -P -- "$dir" 2>/dev/null && pwd -P)" || return 1
+    [ "$canon" != / ] || return 1
+    case "$canon" in
+        /data|/storage|/storage/emulated|/storage/emulated/0|/sdcard|/proc|/sys|/dev|/mnt|/system|/vendor|/apex)
+            return 1 ;;
+    esac
+    for item in "$DOWNLOADS_DIR" "$HOME" "$HOME/storage" "$HOME/storage/shared" "${PAINEL_DIR:-/diretorio-indefinido}" "${PREFIX:-/prefix-indefinido}" "${BASE_DIR:-/base-indefinido}"; do
+        [ -d "$item" ] || continue
+        [ "$canon" = "$(cd -P -- "$item" 2>/dev/null && pwd -P)" ] && return 1
+    done
+    return 0
 }
 
 wizard_etapa_item() {
-    local entradas=() caminhos=() f i=1
-    while IFS= read -r -d '' f; do
-        caminhos+=("$f")
-        icone_tipo_item "$f"
-        entradas+=("$i|$ICON_ITEM|$(basename "$f")|$TIPO_ITEM")
-        i=$((i+1))
-    done < <(find "$WIZ_ORIGEM_BASE" -mindepth 1 -maxdepth 1 -print0 2>/dev/null | sort -z)
-    [ ${#caminhos[@]} -gt 0 ] || { warn "Nenhum item encontrado em $WIZ_ORIGEM_BASE."; pause; return 1; }
+    # Navegador por números, com paginação e acesso a qualquer pasta legível.
+    # Pastas ABREM ao tocar. Importar a pasta inteira exige escolher [I].
+    local -a pastas arquivos caminhos
+    local f total tamanho=10 ultima inicio fim i indice escolha destino
+    while true; do
+        if [ ! -d "$WIZ_ORIGEM_BASE" ] || [ ! -r "$WIZ_ORIGEM_BASE" ] || [ ! -x "$WIZ_ORIGEM_BASE" ]; then
+            warn "A pasta atual não está acessível. Voltando a Downloads."
+            wizard_ir_para_diretorio "$DOWNLOADS_DIR" || return 1
+        fi
+        pastas=(); arquivos=(); caminhos=()
+        while IFS= read -r -d '' f; do
+            if [ -d "$f" ]; then pastas+=("$f")
+            elif [ -f "$f" ]; then arquivos+=("$f")
+            fi
+        done < <(find "$WIZ_ORIGEM_BASE" -mindepth 1 -maxdepth 1 -print0 2>/dev/null | sort -z)
+        caminhos=("${pastas[@]}" "${arquivos[@]}")
+        total=${#caminhos[@]}
+        ultima=$(( total > 0 ? (total - 1) / tamanho : 0 ))
+        [[ "${WIZ_NAV_PAGE:-0}" =~ ^[0-9]+$ ]] || WIZ_NAV_PAGE=0
+        [ "$WIZ_NAV_PAGE" -le "$ultima" ] || WIZ_NAV_PAGE="$ultima"
+        inicio=$((WIZ_NAV_PAGE * tamanho))
+        fim=$((inicio + tamanho))
+        [ "$fim" -le "$total" ] || fim="$total"
 
-    wizard_cabecalho 1 5 "Importar projeto" "Escolha uma pasta, arquivo ou ZIP."
-    caixa_simples "📂 Origem" "$(caminho_curto "$WIZ_ORIGEM_BASE")"
-    echo
-    caixa_linha_topo
-    local item
-    for item in "${entradas[@]}"; do
-        IFS='|' read -r n ic nome desc <<< "$item"
-        menu_opcao "$n" "$ic" "$nome" "$desc"
+        wizard_cabecalho 1 5 "Localizar arquivo" "Abra as pastas até encontrar o ZIP desejado."
+        caixa_simples "📂 Pasta atual" "$(caminho_curto "$WIZ_ORIGEM_BASE")"
+        echo
+        caixa_linha_topo
+        if [ "$total" -eq 0 ]; then
+            caixa_linha_texto "Pasta vazia. Use [0] para voltar ou outro atalho."
+        else
+            for ((i=inicio; i<fim; i++)); do
+                f="${caminhos[$i]}"
+                if [ -d "$f" ]; then
+                    menu_opcao "$((i-inicio+1))" "📁" "$(wizard_nome_arquivo_visivel "$f")" "Abrir pasta"
+                else
+                    icone_tipo_item "$f"
+                    menu_opcao "$((i-inicio+1))" "$ICON_ITEM" "$(wizard_nome_arquivo_visivel "$f")" "$TIPO_ITEM"
+                fi
+            done
+        fi
+        caixa_linha_baixo
+        caixa_linha_texto "Página $((WIZ_NAV_PAGE+1))/$((ultima+1)) • $total item(ns)"
+        rodape_atalhos "[1-10] Abrir/selecionar • [+/-] Página • [0] Subir"
+        rodape_atalhos "[D] Downloads • [A] Android • [H] Home • [P] Painel"
+        rodape_atalhos "[R] Raiz • [I] Importar pasta atual • [X] Cancelar"
+        ler_opcao
+        escolha="${RESPOSTA_MENU^^}"
+        case "$escolha" in
+            X|Q) return 1 ;;
+            0)
+                if [ "$WIZ_ORIGEM_BASE" = / ]; then return 1; fi
+                wizard_ir_para_diretorio "$(dirname -- "$WIZ_ORIGEM_BASE")" || return 1
+                ;;
+            +|">") [ "$WIZ_NAV_PAGE" -lt "$ultima" ] && WIZ_NAV_PAGE=$((WIZ_NAV_PAGE+1)) ;;
+            -|"<") [ "$WIZ_NAV_PAGE" -gt 0 ] && WIZ_NAV_PAGE=$((WIZ_NAV_PAGE-1)) ;;
+            D) wizard_ir_para_diretorio "$DOWNLOADS_DIR" || pause ;;
+            A)
+                destino="$HOME/storage/shared"
+                [ -d "$destino" ] || destino="/storage/emulated/0"
+                wizard_ir_para_diretorio "$destino" || pause
+                ;;
+            H) wizard_ir_para_diretorio "$HOME" || pause ;;
+            P) wizard_ir_para_diretorio "${PAINEL_DIR:-$HOME/Painel}" || pause ;;
+            R) wizard_ir_para_diretorio / || pause ;;
+            I)
+                if ! wizard_pasta_importavel "$WIZ_ORIGEM_BASE"; then
+                    warn "Entre na pasta de um projeto antes de importá-la inteira."
+                    pause
+                    continue
+                fi
+                WIZ_ORIGEM="$WIZ_ORIGEM_BASE"
+                WIZ_ORIGEM_ORIGINAL="$WIZ_ORIGEM"
+                icone_tipo_item "$WIZ_ORIGEM"
+                WIZ_TIPO="$TIPO_ITEM"
+                return 0
+                ;;
+            *)
+                if [[ "$escolha" =~ ^[0-9]+$ ]] && [ "$escolha" -ge 1 ] && [ "$escolha" -le $((fim-inicio)) ]; then
+                    indice=$((inicio + 10#$escolha - 1))
+                    f="${caminhos[$indice]}"
+                    if [ -d "$f" ]; then
+                        wizard_ir_para_diretorio "$f" || pause
+                    elif [ -f "$f" ]; then
+                        WIZ_ORIGEM="$f"
+                        WIZ_ORIGEM_ORIGINAL="$f"
+                        icone_tipo_item "$f"
+                        WIZ_TIPO="$TIPO_ITEM"
+                        return 0
+                    fi
+                else
+                    warn "Opção inválida."
+                    pause
+                fi
+                ;;
+        esac
     done
-    caixa_linha_baixo
-    rodape_atalhos "[0] Cancelar  •  [número] Selecionar"
-    ler_opcao
-    [ "$RESPOSTA_MENU" = 0 ] && return 1
-    [[ "$RESPOSTA_MENU" =~ ^[0-9]+$ ]] || return 2
-    [ "$RESPOSTA_MENU" -ge 1 ] && [ "$RESPOSTA_MENU" -le ${#caminhos[@]} ] || return 2
-    WIZ_ORIGEM="${caminhos[$((RESPOSTA_MENU-1))]}"
-    WIZ_ORIGEM_ORIGINAL="$WIZ_ORIGEM"
-    icone_tipo_item "$WIZ_ORIGEM"; WIZ_TIPO="$TIPO_ITEM"
-    return 0
 }
 
 
