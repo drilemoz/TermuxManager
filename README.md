@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.132  
+**Versão atual:** 1.0.133  
 
 ### Verificação automática opcional na abertura (1.0.129)
 
@@ -574,10 +574,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.132
-Tag: v1.0.132
-Release: Manager 1.0.132
-Pacote único: TermuxManager-v1.0.132.zip
+Versão: 1.0.133
+Tag: v1.0.133
+Release: Manager 1.0.133
+Pacote único: TermuxManager-v1.0.133.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
@@ -784,6 +784,12 @@ O Manager **não usa `push --force` automaticamente**. Se o remoto tiver histór
 ### Reparo automático de dependências
 
 No teste de projetos Node, o Manager valida `node_modules` antes de reutilizar o cache. Se detectar uma instalação inconsistente ou se o servidor falhar com `MODULE_NOT_FOUND`, a assinatura é invalidada e o Manager tenta um reparo limpo uma única vez. Projetos com lockfile usam `npm ci`; sem lockfile, `node_modules` é recriado com `npm install`.
+
+### Início conjunto dos serviços (1.0.133)
+
+No menu **2. Central de execução**, pressione **T (Iniciar tudo)** para iniciar em sequência o MariaDB (quando instalado), o phpMyAdmin (quando já instalado) e um projeto PHP/Node selecionado. Se só houver um projeto executável, ele é selecionado automaticamente. Havendo vários, o menu pede a escolha uma vez e a registra em `~/.termux-manager/central-iniciar-tudo-projeto`, com permissão 600. Use **C (Configurar início conjunto)** para escolher outro projeto ou ativar o modo **Somente serviços**. O perfil é mantido entre reinícios e atualizações do Manager.
+
+A rotina é idempotente: não reinicia o MariaDB ativo, não duplica projetos gerenciados e não abre uma segunda instância do phpMyAdmin. Serviços não instalados são ignorados com aviso. Conflitos de portas, extensões ausentes e processos sem saúde confirmada são comunicados no resumo. Não executa `pkg install`, `npm install`, `composer` nem altera bases de dados; instalação/configuração de dependências permanece no menu próprio. PHP e Node são linguagens, e somente o projeto escolhido é servido, evitando disputar portas entre sites diversos. O servidor PHP mantém a raiz `public/` quando detectada. Não abre o navegador automaticamente pelo botão T; use os atalhos de acesso habituais.
 
 ### Central de execução (v1.0.131)
 

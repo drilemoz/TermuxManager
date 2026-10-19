@@ -8,7 +8,7 @@ O projeto usa Versionamento Semântico: `MAJOR.MINOR.PATCH`.
 - **MINOR:** nova funcionalidade compatível;
 - **PATCH:** correção, documentação ou melhoria visual sem quebra de compatibilidade.
 
-Versão atual de referência: `1.0.132`.
+Versão atual de referência: `1.0.133`.
 
 ## Padrão da release
 
@@ -25,10 +25,10 @@ Integridade: MANIFEST.json dentro do pacote
 Para a versão atual:
 
 ```text
-Versão interna: 1.0.132
-Tag: v1.0.132
-Título: Manager 1.0.132
-Pacote único: TermuxManager-v1.0.132.zip
+Versão interna: 1.0.133
+Tag: v1.0.133
+Título: Manager 1.0.133
+Pacote único: TermuxManager-v1.0.133.zip
 Integridade: MANIFEST.json dentro do pacote
 ```
 
@@ -101,6 +101,10 @@ A integração GitHub deve registrar falhas em `~/.termux-manager/logs/github.lo
 ## Atualização pelo GitHub
 
 A branch `main` é o canal estável usado pela atualização automática do Manager. Cada alteração publicada na `main` deve incrementar a versão e manter `MANIFEST.json`, README e CHANGELOG sincronizados. O Manager consulta o manifesto remoto, valida os hashes do arquivo baixado e cria backup antes de substituir a instalação atual.
+
+#### Início conjunto 1.0.133
+
+Atalho [T] na Central: MariaDB → phpMyAdmin → projeto PHP/Node escolhido, sem confirmações intermediárias, com seleção persistente e opção [C] para reconfiguração. Apenas um projeto é iniciado por perfil. Evita duplicar processos, não ocupa porta alheia, não instala ferramentas nem altera dados. Diagnósticos preservados com falhas explícitas e testes específicos de fluxo em lote.
 
 #### Central de execução 1.0.132
 

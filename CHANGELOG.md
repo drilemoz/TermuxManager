@@ -1,3 +1,11 @@
+## v1.0.133 (2026-10-19)
+
+- **Central de execução → [T] Iniciar tudo** ativa os serviços já instalados em sequência: MariaDB local, phpMyAdmin local e o projeto escolhido, sem exigir uma confirmação em cada submenu.
+- Projeto único é escolhido automaticamente. Quando há mais de um projeto PHP/Node detectado, a seleção é feita apenas no primeiro uso e salva em arquivo privado (modo apenas serviços também pode ser salvo). [C] altera a escolha a qualquer momento.
+- A partida usa as verificações de socket/TCP MariaDB, extensões PHP, porta HTTP, identidade de PID e saúde dos projetos. Evita iniciar novamente servidores já gerenciados, não sobrescreve portas ocupadas por processos desconhecidos e mostra falhas reais.
+- O comando não instala dependências, não cria usuários/bancos, não importa dados e não inicia todos os projetos indiscriminadamente. PHP/Node são ambientes, não daemons. Mantidas opções anteriores e recursos de diagnóstico.
+- Incluídos testes de preferência persistente, fluxo em lote, ordem de início, falha parcial, conflito de porta e idempotência.
+
 ## v1.0.132 (2026-10-19)
 
 - Importação simplificada: projetos novos passam diretamente da escolha de origem, modo e destino à revisão final. A tela de conflitos não aparece quando não há arquivos coincidentes.

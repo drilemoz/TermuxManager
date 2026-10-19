@@ -166,29 +166,43 @@ pma_instalar() (
     pause
 )
 
+# Modo em lote: as mesmas verificações do menu, sem tela e pause entre serviços.
+# Não instala dependências nem modifica bancos ou contas existentes.
+pma_inicio_msg() {
+    local lote="$1" titulo="$2"; shift 2
+    if [ "$lote" = true ]; then
+        printf '%s\n' "$titulo: $*"
+    else
+        caixa_simples "$titulo" "$@"
+    fi
+}
+
+pma_inicio_pause() { [ "$1" = true ] || pause; }
+
 pma_iniciar_db() {
-    local dbdir socket pid i
-    cabecalho_tela "🗄️ MariaDB" "Servidor local"
+    local dbdir socket pid i lote=false
+    [ "${1:-}" = --lote ] && lote=true
+    [ "$lote" = true ] || cabecalho_tela "🗄️ MariaDB" "Servidor local"
     if ! command -v mariadbd >/dev/null 2>&1 || ! command -v mariadb-admin >/dev/null 2>&1; then
-        caixa_simples "Não instalado" "Instale PHP + MariaDB no menu PHP."
-        pause; return 1
+        pma_inicio_msg "$lote" "Não instalado" "Instale PHP + MariaDB no menu PHP."
+        pma_inicio_pause "$lote"; return 1
     fi
     if pma_db_ativo; then
         if pma_db_tcp_ativo; then
-            caixa_simples "✅ MariaDB ativo" "Socket e TCP 127.0.0.1:3306 respondendo." "Nenhum banco foi alterado."
+            pma_inicio_msg "$lote" "✅ MariaDB ativo" "Socket e TCP 127.0.0.1:3306 respondendo." "Nenhum banco foi alterado."
         else
-            caixa_simples "⚠ MariaDB ativo apenas por socket" \
+            pma_inicio_msg "$lote" "⚠ MariaDB ativo apenas por socket" \
                 "O phpMyAdmin pode funcionar, mas o IguaNews precisa de TCP 127.0.0.1:3306." \
                 "Verifique skip-networking/bind-address na configuração MariaDB." \
                 "Não reiniciamos nem alteramos bancos automaticamente."
         fi
-        pause; return 0
+        pma_inicio_pause "$lote"; return 0
     fi
     dbdir="$(pma_db_data)"; socket="$(pma_socket)"
     if [ ! -d "$dbdir/mysql" ]; then
         error "Banco ainda não inicializado. A instalação normal do pacote MariaDB cria as tabelas de sistema."
-        caixa_simples "Diagnóstico" "Não recriamos automaticamente o diretório de dados para evitar perda de dados." "Verifique a instalação e o log do MariaDB."
-        pause; return 1
+        pma_inicio_msg "$lote" "Diagnóstico" "Não recriamos automaticamente o diretório de dados para evitar perda de dados." "Verifique a instalação e o log do MariaDB."
+        pma_inicio_pause "$lote"; return 1
     fi
     mkdir -p "$PMA_ROOT" "$(dirname "$socket")" || return 1
     chmod 700 "$PMA_ROOT"
@@ -201,40 +215,41 @@ pma_iniciar_db() {
             if pma_db_tcp_ativo; then
                 ok "MariaDB ativo: socket e TCP 127.0.0.1:3306."
             else
-                caixa_simples "⚠ MariaDB iniciou" \
+                pma_inicio_msg "$lote" "⚠ MariaDB iniciou" \
                     "Socket responde, mas TCP 127.0.0.1:3306 não foi confirmado." \
                     "O IguaNews poderá continuar sem conexão. Veja o diagnóstico."
             fi
-            pause; return 0
+            pma_inicio_pause "$lote"; return 0
         fi
         kill -0 "$pid" 2>/dev/null || break
         sleep 1
     done
     error "MariaDB não iniciou. Verifique o log $(caminho_curto "$PMA_ROOT/mariadb.log")."
-    pause; return 1
+    pma_inicio_pause "$lote"; return 1
 }
 
 pma_iniciar_web() {
-    local pid i codigo
-    cabecalho_tela "🌐 phpMyAdmin" "Servidor web local"
+    local pid i codigo lote=false
+    [ "${1:-}" = --lote ] && lote=true
+    [ "$lote" = true ] || cabecalho_tela "🌐 phpMyAdmin" "Servidor web local"
     if ! pma_instalado; then
-        caixa_simples "Não instalado" "Selecione Instalar phpMyAdmin antes de iniciar."
-        pause; return 1
+        pma_inicio_msg "$lote" "Não instalado" "Selecione Instalar phpMyAdmin antes de iniciar."
+        pma_inicio_pause "$lote"; return 1
     fi
     if ! pma_dependencias_php; then
-        error "Extensões PHP incompletas."; pause; return 1
+        error "Extensões PHP incompletas."; pma_inicio_pause "$lote"; return 1
     fi
     if ! pma_db_ativo; then
-        caixa_simples "MariaDB parado" "Inicie o MariaDB no menu antes do phpMyAdmin."
-        pause; return 1
+        pma_inicio_msg "$lote" "MariaDB parado" "Inicie o MariaDB no menu antes do phpMyAdmin."
+        pma_inicio_pause "$lote"; return 1
     fi
     if pma_web_ativo; then
-        caixa_simples "✅ Já ativo" "Endereço: $(pma_url_local)"
-        pause; return 0
+        pma_inicio_msg "$lote" "✅ Já ativo" "Endereço: $(pma_url_local)"
+        pma_inicio_pause "$lote"; return 0
     fi
-    # Se a porta já estiver ocupada, jamais abrir um servidor desconhecido.
+    # Nunca inicia sobre uma porta já ocupada por um processo desconhecido.
     if command -v curl >/dev/null 2>&1 && curl --silent --max-time 2 --output /dev/null "$(pma_url_local)"; then
-        error "Porta 8081 ocupada por outro servidor. Início cancelado."; pause; return 1
+        error "Porta 8081 ocupada por outro servidor. Início cancelado."; pma_inicio_pause "$lote"; return 1
     fi
     mkdir -p "$PMA_ROOT" || return 1
     chmod 700 "$PMA_ROOT"
@@ -248,15 +263,15 @@ pma_iniciar_web() {
         codigo="$(curl --silent --max-time 2 --output /dev/null --write-out '%{http_code}' "$(pma_url_local)" || true)"
         if [[ "$codigo" =~ ^[234][0-9][0-9]$ ]] && pma_web_ativo; then
             ok "phpMyAdmin disponível em $(pma_url_local)"
-            caixa_simples "Acesso protegido" "Servidor HTTP restrito a 127.0.0.1." "Login por usuário e senha MariaDB." "O MariaDB permanece ativo ao fechar phpMyAdmin."
-            pause; return 0
+            pma_inicio_msg "$lote" "Acesso protegido" "Servidor HTTP restrito a 127.0.0.1." "Login por usuário e senha MariaDB." "O MariaDB permanece ativo ao fechar phpMyAdmin."
+            pma_inicio_pause "$lote"; return 0
         fi
         sleep 1
     done
     if pma_pid_web >/dev/null 2>&1; then kill "$pid" 2>/dev/null || true; fi
     rm -f -- "$PMA_ROOT/web.pid"
     error "Servidor não iniciou corretamente. Log: $(caminho_curto "$PMA_ROOT/web.log")"
-    pause; return 1
+    pma_inicio_pause "$lote"; return 1
 }
 
 pma_abrir_web() {

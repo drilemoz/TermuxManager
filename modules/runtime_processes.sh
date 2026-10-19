@@ -830,6 +830,170 @@ central_abrir_phpmyadmin() {
     fi
 }
 
+# Início conjunto fica limitado a um projeto explicitamente selecionado
+# (ou ao único projeto detectado). Não inicia todos os repositórios às cegas.
+central_perfil_arquivo() { printf '%s/.termux-manager/central-iniciar-tudo-projeto' "$HOME"; }
+
+central_projetos_candidatos() {
+    local entrada dir
+    CENTRAL_CANDIDATOS=()
+    descobrir_entradas
+    for entrada in "${PROJETOS_ENCONTRADOS[@]}"; do
+        dir="${entrada%%|*}"
+        [ -d "$dir" ] || continue
+        if central_projeto_compativel "$dir" php || central_projeto_compativel "$dir" node; then
+            CENTRAL_CANDIDATOS+=("$dir")
+        fi
+    done
+}
+
+central_perfil_selecionar() {
+    # central_perfil_selecionar [configurar]: false retorna o projeto salvo
+    # ou o único encontrado sem mostrar seleção; true permite trocar o perfil.
+    local configurar="${1:-false}" salvo="" escolha i dir arq
+    local -a itens=()
+    central_projetos_candidatos
+    CENTRAL_PROJETO_ESCOLHIDO=""
+    arq="$(central_perfil_arquivo)"
+    [ -f "$arq" ] && IFS= read -r salvo < "$arq" || true
+    if [ "$configurar" != true ] && [ "$salvo" = SERVICOS_APENAS ]; then
+        return 0
+    fi
+    if [ "$configurar" != true ] && [ -n "$salvo" ]; then
+        for dir in "${CENTRAL_CANDIDATOS[@]}"; do
+            if [ "$dir" = "$salvo" ]; then
+                CENTRAL_PROJETO_ESCOLHIDO="$dir"; return 0
+            fi
+        done
+    fi
+    if [ "$configurar" != true ] && [ "${#CENTRAL_CANDIDATOS[@]}" -eq 1 ]; then
+        CENTRAL_PROJETO_ESCOLHIDO="${CENTRAL_CANDIDATOS[0]}"
+        return 0
+    fi
+    if [ "${#CENTRAL_CANDIDATOS[@]}" -eq 0 ]; then
+        [ "$configurar" = true ] && caixa_simples "Sem projetos" "Importe um projeto PHP ou Node antes de configurar o início conjunto."
+        return 0
+    fi
+    for ((i=0;i<${#CENTRAL_CANDIDATOS[@]};i++)); do
+        dir="${CENTRAL_CANDIDATOS[i]}"
+        nome_amigavel_projeto "$dir"
+        itens+=("$((i+1))|📦|$NOME_PROJETO|$(caminho_curto "$dir")")
+    done
+    menu_unificado "🚀 Projeto de início conjunto" \
+        "Selecione uma vez. A escolha ficará salva e poderá ser trocada em [C]." \
+        "[0] Apenas serviços • [número] Selecionar projeto" "${itens[@]}"
+    ler_opcao; escolha="$RESPOSTA_MENU"
+    if [ "$escolha" = 0 ]; then
+        # Escolha explícita: persistir perfil sem projeto para não repetir a pergunta.
+        (umask 077; mkdir -p "$(dirname "$arq")" && printf 'SERVICOS_APENAS\n' > "$arq.tmp.$$" && mv -f -- "$arq.tmp.$$" "$arq") || return 1
+        [ "$configurar" = true ] && caixa_simples "Perfil atualizado" "Somente serviços serão iniciados."
+        return 0
+    fi
+    if ! [[ "$escolha" =~ ^[0-9]+$ ]] || [ "$escolha" -lt 1 ] || [ "$escolha" -gt "${#CENTRAL_CANDIDATOS[@]}" ]; then
+        warn "Seleção inválida; nenhum perfil alterado."
+        return 1
+    fi
+    dir="${CENTRAL_CANDIDATOS[$((escolha-1))]}"
+    # Salvar de forma atômica, com permissões restritas. Nunca executar o conteúdo como shell.
+    (umask 077; mkdir -p "$(dirname "$arq")" && printf '%s\n' "$dir" > "$arq.tmp.$$" && mv -f -- "$arq.tmp.$$" "$arq") || return 1
+    CENTRAL_PROJETO_ESCOLHIDO="$dir"
+    return 0
+}
+
+central_iniciar_componente_lote() {
+    local projeto="$1" tipo="$2" dir="$3" cmd="$4" framework="$5"
+    local nome porta previa
+    [ -n "$dir" ] && [ -n "$cmd" ] || return 1
+    nome_processo_projeto "$projeto" "$tipo"; nome="$NOME_PROCESSO"
+    if pid_ativo "$PID_DIR/${nome}.pid"; then
+        info "$tipo já está ativo e será preservado."
+        return 0
+    fi
+    previa="$DETECT_FRAMEWORK"
+    DETECT_FRAMEWORK="$framework"
+    porta="$(porta_esperada_execucao "$dir" "$cmd" "$tipo" 2>/dev/null || true)"
+    DETECT_FRAMEWORK="$previa"
+    if porta_valida "$porta" && porta_em_escuta "$porta"; then
+        warn "Porta $porta já ocupada por outro processo; $tipo não iniciado."
+        return 1
+    fi
+    executar_em_background "$dir" "$cmd" "$nome" "$projeto" "$tipo" || return 1
+    if ! aguardar_servidor_processo "$nome" 15; then
+        warn "Verifique o log de $tipo na Central de Execução."
+        return 1
+    fi
+    return 0
+}
+
+central_iniciar_projeto_lote() {
+    local projeto="$1" front_dir front_cmd front_fw back_dir back_cmd back_fw
+    [ -d "$projeto" ] || { warn "Projeto não existe mais."; return 1; }
+    detectar_estrutura_projeto "$projeto"
+    front_dir="$FRONT_DIR"; front_cmd="$FRONT_RUN_CMD"; front_fw="$FRONT_FRAMEWORK"
+    back_dir="$BACK_DIR"; back_cmd="$BACK_RUN_CMD"; back_fw="$BACK_FRAMEWORK"
+    [ -n "$front_dir" ] || [ -n "$back_dir" ] || { warn "Projeto sem componentes executáveis."; return 1; }
+    local falha=0
+    # Não instala pacotes ou dependências em segundo plano; usa o ambiente já pronto.
+    if [ -n "$back_dir" ]; then
+        case "$back_fw" in
+            PHP|Laravel) comando_existe php || { warn "PHP não instalado."; falha=1; } ;;
+            Node.js|Express|NestJS|Fastify|Koa) comando_existe node || { warn "Node.js não instalado."; falha=1; } ;;
+        esac
+        if [ "$falha" -eq 0 ]; then
+            central_iniciar_componente_lote "$projeto" backend "$back_dir" "$back_cmd" "$back_fw" || falha=1
+        fi
+    fi
+    if [ -n "$front_dir" ]; then
+        if ! comando_existe node; then
+            warn "Node.js não instalado; frontend não iniciado."
+            falha=1
+        elif [ "$falha" -eq 0 ]; then
+            central_iniciar_componente_lote "$projeto" frontend "$front_dir" "$front_cmd" "$front_fw" || falha=1
+        else
+            warn "Frontend não iniciado porque o backend não ficou disponível."
+        fi
+    fi
+    [ "$falha" -eq 0 ]
+}
+
+central_iniciar_tudo() {
+    local projeto="" falhas=0 servicos=0 resumo=""
+    # A única escolha necessária é feita no primeiro uso com vários projetos.
+    central_perfil_selecionar false || { pause; return 1; }
+    projeto="$CENTRAL_PROJETO_ESCOLHIDO"
+    cabecalho_tela "🚀 Iniciar tudo" "Serviços e projeto selecionado"
+    [ -n "$projeto" ] && info "Projeto: $(caminho_curto "$projeto")" || info "Nenhum projeto selecionado: somente serviços."
+    # MariaDB primeiro: site PHP pode depender de TCP 3306.
+    if comando_existe mariadbd && comando_existe mariadb-admin; then
+        if pma_iniciar_db --lote; then
+            servicos=$((servicos+1))
+            pma_db_tcp_ativo || warn "MariaDB por socket OK, mas TCP 3306 não confirmado. IguaNews pode falhar."
+        else
+            falhas=$((falhas+1))
+        fi
+    else
+        info "MariaDB não instalado; ignorado."
+    fi
+    if pma_instalado; then
+        if pma_iniciar_web --lote; then servicos=$((servicos+1)); else falhas=$((falhas+1)); fi
+    else
+        info "phpMyAdmin não instalado; ignorado."
+    fi
+    if [ -n "$projeto" ]; then
+        if central_iniciar_projeto_lote "$projeto"; then servicos=$((servicos+1)); else falhas=$((falhas+1)); fi
+    fi
+    printf '\n'
+    central_status_servicos
+    caixa_simples "Resultado do início conjunto" \
+        "MariaDB: $CENTRAL_DB_STATUS" \
+        "phpMyAdmin: $CENTRAL_PMA_STATUS" \
+        "Projeto: ${projeto:-nenhum selecionado}" \
+        "Etapas sem erro: $servicos • Falhas: $falhas" \
+        "Abra [R] para atualizar ou escolha um processo para ver o log."
+    pause
+    [ "$falhas" -eq 0 ]
+}
+
 menu_processos_ativos() {
     while true; do
         limpar_pidfiles_inativos
@@ -865,6 +1029,8 @@ menu_processos_ativos() {
         fi
 
         caixa_linha_topo
+        menu_opcao "T" "🚀" "Iniciar tudo" "MariaDB, phpMyAdmin e projeto escolhido"
+        menu_opcao "C" "⚙️" "Configurar início conjunto" "Escolher projeto padrão"
         menu_opcao "P" "🐘" "Projetos PHP" "PHP: $CENTRAL_PHP_STATUS • iniciar projeto"
         menu_opcao "N" "🟢" "Projetos Node.js" "Node: $CENTRAL_NODE_STATUS • iniciar projeto"
         menu_opcao "D" "🗄️" "Iniciar / verificar MariaDB" "$CENTRAL_DB_STATUS"
@@ -872,10 +1038,12 @@ menu_processos_ativos() {
         menu_opcao "W" "📱" "Abrir phpMyAdmin" "http://127.0.0.1:8081 (somente local)"
         menu_opcao "R" "🔄" "Atualizar estados" "Consultar projetos e serviços novamente"
         caixa_linha_baixo
-        rodape_atalhos "[0] Voltar • [P/N/D/M/W/R] Serviços • [A] Parar projetos • [número] Gerenciar"
+        rodape_atalhos "[0] Voltar • [T] Iniciar tudo • [C] Configurar • [P/N/D/M/W/R] Serviços • [A] Parar projetos • [número] Gerenciar"
         ler_opcao
         case "${RESPOSTA_MENU,,}" in
             0) return ;;
+            t) central_iniciar_tudo || true ;;
+            c) central_perfil_selecionar true || true ;;
             p) central_iniciar_projeto php ;;
             n) central_iniciar_projeto node ;;
             d) pma_iniciar_db || true ;;
