@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.131  
+**Versão atual:** 1.0.132  
 
 ### Verificação automática opcional na abertura (1.0.129)
 
@@ -451,6 +451,8 @@ Não é necessário mover ZIPs de subpastas para a raiz de Downloads. A opção 
 
 A origem padrão da importação é sempre a própria pasta **Downloads**. O Manager não entra automaticamente em `Downloads/projetos`, então um ZIP recém-baixado aparece imediatamente na lista sem precisar ser movido antes.
 
+**Fluxo rápido (1.0.132):** escolha o ZIP, selecione **Extrair e importar**, escolha o destino e confirme na revisão. Para projetos sem arquivos coincidentes, nenhuma tela intermediária pede Enter. A revisão informa quais pastas são excluídas automaticamente (`node_modules`, `.git`, `dist`, `build`, ou as exclusões alteradas em Configurações). Se houver arquivos com o mesmo nome, uma única escolha define o tratamento antes da revisão. A cópia não repetirá perguntas de exclusão e conflitos. Para copiar projetos pelo Explorer ou por outras rotas fora do assistente, a confirmação própria da cópia permanece disponível.
+
 O assistente permite:
 
 - importar uma pasta inteira;
@@ -458,7 +460,7 @@ O assistente permite:
 - extrair um ZIP;
 - copiar o conteúdo sem manter a pasta externa;
 - escolher `~/Painel` ou `~/Painel/projetos` como destino;
-- substituir, ignorar, renomear ou confirmar conflitos individualmente.
+- preservar, substituir ou renomear arquivos conflitantes, com decisão única no assistente quando houver colisões.
 
 Durante análise e cópia, o painel avança em tempo real:
 
@@ -470,7 +472,7 @@ Durante análise e cópia, o painel avança em tempo real:
 254/254 arquivos
 ```
 
-Ao terminar, mostra velocidade média, tempo total, arquivos copiados e pastas criadas. Depois de `ENTER`, retorna ao menu de importação sem encerrar o Manager.
+Ao terminar, mostra velocidade média, tempo total, arquivos copiados e pastas criadas. Depois da cópia, o Manager mostra ações para o projeto reconhecido, sem exigir confirmações repetidas antes de iniciar a transferência.
 
 Caminhos exibidos pela interface são abreviados a partir de `$HOME`: por exemplo, `/data/data/com.termux/files/home/Painel/.logs/app.log` aparece como `~/Painel/.logs/app.log`. Caminhos absolutos continuam sendo usados internamente pelos comandos.
 
@@ -572,10 +574,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.129
-Tag: v1.0.129
-Release: Manager 1.0.129
-Pacote único: TermuxManager-v1.0.131.zip
+Versão: 1.0.132
+Tag: v1.0.132
+Release: Manager 1.0.132
+Pacote único: TermuxManager-v1.0.132.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

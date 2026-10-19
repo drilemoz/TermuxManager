@@ -215,24 +215,29 @@ copiar_com_rsync() {
 }
 
 # ----------------------------------------------------------------------------
-# motor_copia <origem> <destino_base> <achatar:true|false> [pausar_final:true|false]
+# motor_copia <origem> <destino_base> <achatar:true|false> [pausar_final:true|false] [via_wizard:true|false]
 # ----------------------------------------------------------------------------
 motor_copia() {
-    local origem="$1" destino_base="$2" achatar="$3" pausar_final="${4:-true}"
+    local origem="$1" destino_base="$2" achatar="$3" pausar_final="${4:-true}" via_wizard="${5:-false}"
     local destino="$destino_base"
     [ "$achatar" != true ] && destino="$destino_base/$(basename "$origem")"
 
     mkdir -p "$destino_base"
 
-    echo
-    caixa_simples "🧹 Limpeza da Cópia" "Exclusões padrão: $EXCLUSOES_PADRAO" "ENTER = usar padrão | - = não excluir"
-    read -rp "Nomes a excluir: " -a excl_input
-    local -a excluir_padroes=()
-    if [ ${#excl_input[@]} -eq 0 ]; then
-        # shellcheck disable=SC2206
-        excluir_padroes=($EXCLUSOES_PADRAO)
-    elif [ "${excl_input[0]}" != "-" ]; then
-        excluir_padroes=("${excl_input[@]}")
+    local -a excl_input=() excluir_padroes=()
+    if [ "$via_wizard" = true ]; then
+        # O assistente já informou as exclusões na revisão final. Não pede
+        # novamente algo que o usuário acabou de confirmar.
+        read -r -a excluir_padroes <<< "${EXCLUSOES_PADRAO:-}"
+    else
+        echo
+        caixa_simples "🧹 Limpeza da Cópia" "Exclusões padrão: $EXCLUSOES_PADRAO" "ENTER = usar padrão | - = não excluir"
+        read -rp "Nomes a excluir: " -a excl_input
+        if [ ${#excl_input[@]} -eq 0 ]; then
+            read -r -a excluir_padroes <<< "${EXCLUSOES_PADRAO:-}"
+        elif [ "${excl_input[0]}" != "-" ]; then
+            excluir_padroes=("${excl_input[@]}")
+        fi
     fi
 
     local -a find_expr=()
@@ -248,16 +253,21 @@ motor_copia() {
     fi
 
     local modo_conflito=""
-    case "$CONFLITO_PADRAO" in
-        substituir) modo_conflito=1 ;;
-        pular) modo_conflito=2 ;;
-        renomear) modo_conflito=3 ;;
-        perguntar|"")
-            echo
-            caixa_simples "⚠ Arquivos Existentes" "1) 🔄 Substituir" "2) ⏭ Pular" "3) 📝 Renomear automaticamente" "4) ❓ Perguntar em cada conflito"
-            read -rp "Escolha: " modo_conflito
-            ;;
-    esac
+    if [ "$via_wizard" = true ]; then
+        # A política foi definida ao detectar colisões (ou preserva por padrão).
+        modo_conflito="${WIZ_CONFLITO_MODO:-2}"
+    else
+        case "$CONFLITO_PADRAO" in
+            substituir) modo_conflito=1 ;;
+            pular) modo_conflito=2 ;;
+            renomear) modo_conflito=3 ;;
+            perguntar|"")
+                echo
+                caixa_simples "⚠ Arquivos Existentes" "1) 🔄 Substituir" "2) ⏭ Pular" "3) 📝 Renomear automaticamente" "4) ❓ Perguntar em cada conflito"
+                read -rp "Escolha: " modo_conflito
+                ;;
+        esac
+    fi
     case "$modo_conflito" in 1|2|3|4) ;; *) warn "Opção inválida."; pause; return ;; esac
 
     clear
@@ -320,8 +330,12 @@ motor_copia() {
         caixa_simples "⚡ Cópia otimizada" \
             "O pacote rsync melhora projetos com muitos arquivos." \
             "Sem ele, será usado o modo compatível."
-        if confirmar_acao "Instalar rsync agora?" "s"; then
-            instalar_pkg_termux rsync || warn "Não foi possível instalar rsync; usando modo compatível."
+        # A importação guiada deve seguir sem mais prompts: usa a cópia
+        # compatível se rsync não estiver instalado (instalação opcional depois).
+        if [ "$via_wizard" != true ]; then
+            if confirmar_acao "Instalar rsync agora?" "s"; then
+                instalar_pkg_termux rsync || warn "Não foi possível instalar rsync; usando modo compatível."
+            fi
         fi
         clear
         progresso_resetar

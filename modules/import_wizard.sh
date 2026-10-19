@@ -8,6 +8,7 @@ wizard_resetar_importacao() {
     WIZ_NOME_PROJETO=""; WIZ_DESTINO_PROJETO=false; WIZ_CAMADA_EXTERNA=""
     WIZ_ITENS=()
     WIZ_DEPS_PRESERVADAS=()
+    WIZ_CONFLITO_MODO=2; WIZ_CONFLITOS=0; WIZ_CONFLITOS_TELA=false
 }
 
 wizard_localizar_origem() {
@@ -337,34 +338,89 @@ wizard_etapa_destino() {
     esac
 }
 
-wizard_etapa_conflitos() {
-    local alvo="$WIZ_DESTINO"
-    WIZ_SOBRESCREVER=false
-
-    # Em ~/Painel o conteúdo é deliberadamente solto; conflitos continuam
-    # sendo tratados arquivo por arquivo pelo motor de cópia. Em Projetos, o
-    # destino é uma pasta exclusiva e pode ser mesclado ou substituído inteiro.
-    if [ "$WIZ_DESTINO_PROJETO" = true ] && [ -e "$alvo" ]; then
-        menu_unificado "🧭 Importar projeto" "Etapa 4 de 5 — Conflitos" \
-            "[0] Voltar  •  [1–2] Selecionar" \
-            "1|🔄|Mesclar com segurança|Mantém a pasta e trata conflitos arquivo por arquivo" \
-            "2|🧹|Substituir projeto|Remove a pasta atual antes da importação"
-        ler_opcao
-        case "$RESPOSTA_MENU" in 0) return 10;; 1) WIZ_SOBRESCREVER=false;; 2) WIZ_SOBRESCREVER=true;; *) return 2;; esac
-    else
-        wizard_cabecalho 4 5 "Verificar conflitos" "Destino preparado para a importação."
-        if [ "$WIZ_DESTINO_PROJETO" = true ]; then
-            caixa_simples "✅ Pasta do projeto" "$(caminho_curto "$alvo")" "Será criada automaticamente."
-        else
-            caixa_simples "📂 Conteúdo solto" "$(caminho_curto "$alvo")" "Conflitos serão tratados arquivo por arquivo."
-        fi
-        rodape_atalhos "[0] Voltar  •  [Enter] Continuar"
-        ui_buffer_flush
-        read -r RESPOSTA_MENU
-        [ "$RESPOSTA_MENU" = 0 ] && return 10
-        [ -z "$RESPOSTA_MENU" ] && return 0
-        return 2
+# A tela de conflitos só aparece quando existe algo a decidir. A conferência
+# usa as mesmas exclusões padrão que o motor de cópia, sem alterar o destino.
+wizard_verificar_conflitos() {
+    WIZ_CONFLITOS=0
+    [ -d "$WIZ_DESTINO" ] || return 0
+    local -a exclusoes=() expr=()
+    local pad arquivo rel item primeiro=true
+    # Arquivos selecionados/copiar ZIP: o destino é comparado pelo nome final,
+    # e não pela pasta inteira usada durante a navegação do assistente.
+    if [ ${#WIZ_ITENS[@]} -gt 0 ] && { [ ${#WIZ_ITENS[@]} -ne 1 ] || [ ! -d "${WIZ_ITENS[0]}" ]; }; then
+        for item in "${WIZ_ITENS[@]}"; do
+            [ -f "$item" ] || continue
+            rel="$(basename -- "$item")"
+            if [ -e "$WIZ_DESTINO/$rel" ] || [ -L "$WIZ_DESTINO/$rel" ]; then
+                WIZ_CONFLITOS=$((WIZ_CONFLITOS + 1))
+                if [ "$WIZ_CONFLITOS" -ge 50 ]; then break; fi
+            fi
+        done
+        return 0
     fi
+    [ -d "$WIZ_ORIGEM" ] || return 0
+    read -r -a exclusoes <<< "${EXCLUSOES_PADRAO:-}"
+    if [ ${#exclusoes[@]} -gt 0 ]; then
+        expr+=("(")
+        for pad in "${exclusoes[@]}"; do
+            [ -n "$pad" ] || continue
+            if [ "$primeiro" = true ]; then primeiro=false; else expr+=("-o"); fi
+            expr+=("-name" "$pad")
+        done
+        expr+=(")" "-prune" "-o")
+    fi
+    while IFS= read -r -d '' arquivo; do
+        rel="${arquivo#"$WIZ_ORIGEM"/}"
+        if [ -e "$WIZ_DESTINO/$rel" ] || [ -L "$WIZ_DESTINO/$rel" ]; then
+            WIZ_CONFLITOS=$((WIZ_CONFLITOS + 1))
+            # Basta mostrar que há conflitos; limita varreduras grandes.
+            if [ "$WIZ_CONFLITOS" -ge 50 ]; then break; fi
+        fi
+    done < <(find "$WIZ_ORIGEM" "${expr[@]}" -type f -print0 2>/dev/null)
+}
+
+wizard_etapa_conflitos() {
+    local alvo="$WIZ_DESTINO" opcao
+    WIZ_SOBRESCREVER=false
+    WIZ_CONFLITO_MODO=2 # Preservar arquivos existentes por padrão.
+    WIZ_CONFLITOS_TELA=false
+    wizard_verificar_conflitos
+
+    # A pasta existente de um projeto pode precisar ser substituída mesmo
+    # quando não existe colisão direta de nomes (arquivos removidos na versão nova).
+    if [ "$WIZ_DESTINO_PROJETO" = true ] && [ -d "$alvo" ] &&
+       [ -n "$(find "$alvo" -mindepth 1 -print -quit 2>/dev/null)" ]; then
+        WIZ_CONFLITOS_TELA=true
+        menu_unificado "🧭 Importar projeto" "Conflitos no projeto existente" \
+            "[0] Voltar  •  [1–3] Selecionar" \
+            "1|🛡️|Mesclar e preservar|Não altera arquivos que já existem" \
+            "2|🧹|Substituir projeto inteiro|Apaga a pasta antiga antes de copiar" \
+            "3|🔄|Mesclar e atualizar|Substitui apenas arquivos de mesmo nome"
+        ler_opcao
+        case "$RESPOSTA_MENU" in
+            0) return 10 ;;
+            1) WIZ_CONFLITO_MODO=2 ;;
+            2) WIZ_SOBRESCREVER=true; WIZ_CONFLITO_MODO=1 ;;
+            3) WIZ_CONFLITO_MODO=1 ;;
+            *) return 2 ;;
+        esac
+    elif [ "$WIZ_CONFLITOS" -gt 0 ]; then
+        WIZ_CONFLITOS_TELA=true
+        menu_unificado "🧭 Importar projeto" "Arquivos já presentes no destino" \
+            "[0] Voltar  •  [1–3] Selecionar" \
+            "1|🛡️|Preservar existentes|Pular os arquivos que já existem" \
+            "2|🔄|Atualizar arquivos|Substituir somente os de mesmo nome" \
+            "3|📝|Manter os dois|Renomear automaticamente novos arquivos"
+        ler_opcao
+        case "$RESPOSTA_MENU" in
+            0) return 10 ;;
+            1) WIZ_CONFLITO_MODO=2 ;;
+            2) WIZ_CONFLITO_MODO=1 ;;
+            3) WIZ_CONFLITO_MODO=3 ;;
+            *) return 2 ;;
+        esac
+    fi
+    # Sem colisão, não exibe uma tela sem decisão pedindo Enter.
     return 0
 }
 
@@ -394,7 +450,21 @@ wizard_etapa_revisao() {
         [ -n "$previa" ] && caixa_linha_texto "↳ Conteúdo: $(truncar_caminho "$previa" $((LARGURA_CAIXA-15)))"
     fi
     caixa_linha_texto "📚 Itens: ${#WIZ_ITENS[@]}"
-    caixa_linha_texto "🧹 Substituir pasta: $(valor_legivel_bool "$WIZ_SOBRESCREVER")"
+    caixa_linha_texto "🧹 Exclusões: ${EXCLUSOES_PADRAO:-nenhuma}"
+    if [ "${WIZ_CONFLITOS:-0}" -ge 50 ]; then
+        caixa_linha_texto "⚠️ Arquivos conflitantes: 50 ou mais"
+    else
+        caixa_linha_texto "⚠️ Arquivos conflitantes: ${WIZ_CONFLITOS:-0}"
+    fi
+    if [ "$WIZ_SOBRESCREVER" = true ]; then
+        caixa_linha_texto "🔁 Ação: substituir pasta antiga (exclui arquivos removidos)"
+    else
+        case "${WIZ_CONFLITO_MODO:-2}" in
+            1) caixa_linha_texto "🔄 Ação: atualizar arquivos existentes" ;;
+            3) caixa_linha_texto "📝 Ação: renomear novos arquivos conflitantes" ;;
+            *) caixa_linha_texto "🛡️ Ação: preservar arquivos existentes" ;;
+        esac
+    fi
     caixa_linha_baixo
     rodape_atalhos "[0] Voltar  •  [Enter/1] Confirmar"
     ler_opcao
@@ -499,7 +569,7 @@ wizard_executar_importacao() {
         # WIZ_DESTINO já é o destino FINAL. Para Painel, recebe os itens soltos;
         # para Projetos, aponta para ~/Painel/projetos/<nome> e recebe o mesmo
         # conteúdo, sem criar uma segunda camada com o nome da pasta origem.
-        if ! motor_copia "${WIZ_ITENS[0]}" "$WIZ_DESTINO" true false; then
+        if ! motor_copia "${WIZ_ITENS[0]}" "$WIZ_DESTINO" true false true; then
             # Se uma substituição preservou node_modules e a cópia falhar,
             # restaura o cache no destino parcial em vez de abandoná-lo no tmp.
             restaurar_dependencias_substituicao "$WIZ_DESTINO"
@@ -508,15 +578,30 @@ wizard_executar_importacao() {
     else
         cabecalho_tela "📥 Importando arquivos" "Cópia segura para $(caminho_curto "$WIZ_DESTINO")"
         mkdir -p "$WIZ_DESTINO" || { error "Não foi possível criar o destino."; return 1; }
+        local destino_item nome_base base_nome extensao contador
         for item in "${WIZ_ITENS[@]}"; do
-            if [ -e "$WIZ_DESTINO/$(basename "$item")" ]; then
-                warn "Já existe: $(basename "$item"). Item pulado."
-                continue
+            nome_base="$(basename -- "$item")"
+            destino_item="$WIZ_DESTINO/$nome_base"
+            if [ -e "$destino_item" ] || [ -L "$destino_item" ]; then
+                case "${WIZ_CONFLITO_MODO:-2}" in
+                    1) : ;; # Substituir somente após escolha explícita no assistente.
+                    3)
+                        base_nome="${nome_base%.*}"
+                        extensao=".${nome_base##*.}"
+                        if [ "$base_nome" = "$nome_base" ]; then extensao=""; fi
+                        contador=1
+                        while [ -e "$destino_item" ] || [ -L "$destino_item" ]; do
+                            destino_item="$WIZ_DESTINO/${base_nome}_${contador}${extensao}"
+                            contador=$((contador+1))
+                        done
+                        ;;
+                    *) warn "Já existe: $nome_base. Item preservado."; continue ;;
+                esac
             fi
-            if cp -a -- "$item" "$WIZ_DESTINO/"; then
-                ok "Copiado: $(basename "$item")"
+            if cp -a -- "$item" "$destino_item"; then
+                ok "Copiado: $(basename -- "$destino_item")"
             else
-                error "Falha ao copiar: $(basename "$item")"
+                error "Falha ao copiar: $nome_base"
                 falhas=$((falhas + 1))
             fi
         done
@@ -612,7 +697,16 @@ importar_projeto() {
                 fi
                 etapa=$((etapa+1))
                 ;;
-            10) etapa=$((etapa-1)); [ "$etapa" -lt 1 ] && return ;;
+            10)
+                # Se a etapa de conflitos foi pulada, voltar da revisão leva
+                # diretamente à escolha do destino, não a uma tela invisível.
+                if [ "$etapa" -eq 5 ] && [ "${WIZ_CONFLITOS_TELA:-false}" = false ]; then
+                    etapa=3
+                else
+                    etapa=$((etapa-1))
+                fi
+                [ "$etapa" -lt 1 ] && return
+                ;;
             20) wizard_resetar_importacao; wizard_localizar_origem || return; etapa=1 ;;
             *) warn "Opção inválida."; pause ;;
         esac

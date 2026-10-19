@@ -1,21 +1,21 @@
 {
-  "version": "1.0.131",
+  "version": "1.0.132",
   "developer": "Adriedson Aparecido Lemos",
   "release": {
-    "tag": "v1.0.131",
-    "title": "Manager 1.0.131",
-    "asset": "TermuxManager-v1.0.131.zip",
+    "tag": "v1.0.132",
+    "title": "Manager 1.0.132",
+    "asset": "TermuxManager-v1.0.132.zip",
     "integrity": "MANIFEST.json",
-    "version": "1.0.131"
+    "version": "1.0.132"
   },
   "files": {
     ".updates/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "CHANGELOG.md": "15e869f303b5aa7e6da269adeaab112e7f029e8b31b3e42b3c9ea4800a94a78c",
-    "README.md": "b0b9c4e183b7c7a7ad39203d518e11cba6a2f2cd52d94af0fa590ab3fa92ef71",
-    "RELEASE_STANDARD.md": "b5cd83e01439733f3569ae1aef4f360aac4846c89f071874922e221d5788c2ea",
+    "CHANGELOG.md": "e322a876fe578c1d249917d6075bf741fe457852b86c2b25afe1940ff7b3a1c4",
+    "README.md": "4a16701717baa5c4019f7c6f739a08b6ba257a1c5edbd94478b3a6c2f84bacf2",
+    "RELEASE_STANDARD.md": "7b9a13ec507271b44c529c9591d390ed60896cc268e89c22c6cee1b4d71511cc",
     "config/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "install.sh": "e43bdff3e82730ac0b791d648b5d99e22a9d97d880d9696a7b99029f87f7adf1",
-    "manager.sh": "fda6380ba6e8c96b91a30eb61fef4e4ff47d3453a10b29624a35e457b400c864",
+    "manager.sh": "2003ba5b3e8d6d6d201e0630c5ca969868837795be50f100e134e178251b3f74",
     "modules/app.sh": "296fd5763b1f9537de2f18c2dd6cca969a2fa7e7d9f5b60bd288ddbdd1bff545",
     "modules/commands_favorites.sh": "7a3203d3c3a57f9cc83a44a5616c22e8b68a8ae0874b2b003afa4d0844b17c8b",
     "modules/config.sh": "abeb5a8a9f2bdf8157e8b8484088983443c49c178a4073b0dbd048d359314387",
@@ -29,8 +29,8 @@
     "modules/explorer.sh": "446fb6114c83800f2a1c7af366923b985a006947c7bdc404082723d7cb3e51a0",
     "modules/help.sh": "8074e58ff3ebffbddf0b84b96b1fd52846f61291fdc8316be8a6333af04a76d7",
     "modules/import.sh": "5ffc6bad2392de2b46969d5ff7053622be43315f7d7073bccc43ac32a4257c10",
-    "modules/import_copy.sh": "52114ca8d9263fb3a1ad30444f6479fce192635946a1b0d1dca2b71cde46019f",
-    "modules/import_wizard.sh": "164a5852f8b1d7b1cd627400b57df8e17d3f014cc57722e76e1683cc7f1d0ebe",
+    "modules/import_copy.sh": "e47e65b3476fbf97e367f629f0fd8b24f70a370ecef3d05036ec09c92568ad10",
+    "modules/import_wizard.sh": "0ff482dc3ab34e278f2b84f34ddb72b6ec20d48ae472f3ebf7d4ef71f4833871",
     "modules/linux.sh": "e1e80f8bbfad7144531636b025c4c75d8f24575255b3202754220db453dc0f66",
     "modules/linux_admin.sh": "e537aed018dab08757ece7ea54b915d504e831305f3a10fc8c9ce9cb39773578",
     "modules/linux_backup.sh": "21e6b164cce3a86c1690a293953c1e7954428349c519da685bc1881451429155",
@@ -97,9 +97,11 @@
     "tools/test-github-central.sh": "0ae089e8db3a0380e12026859ca12414abdb31ced80f93315e72cc7a92402e74",
     "tools/test-github-publish.sh": "ac001316aa4ede632bd7c9778157463fcc79966f9e6e583bcd6072f6f99906c2",
     "tools/test-github-update.sh": "5d42479cf139b3ac5f4c078bc490266572736566746bb2298262ad3192136c8b",
+    "tools/test-import-browser-131.sh": "042fa98fde2ac03a30f0a20649a8ed600f48b523530d5abd2d06afbfcbcbda3e",
     "tools/test-import-destinations.sh": "fd0f2bd71e804897bd8e4778dcafca9089af72598a62c11815144aa649ead77a",
     "tools/test-import-downloads-root.sh": "6fb75a107f81c027783f48ad73784904c11cd75fc9b7ad5442744723dc1701fc",
     "tools/test-import-flatten.sh": "57efc2796d8ad37b5418f7b925d8bb00bf2391135fb9888d66c590590fd4268a",
+    "tools/test-import-fluxo-132.sh": "3a0eb5597d343b961368021ae148179a03abe3efd3fd03388e1c0c5a7a5fe855",
     "tools/test-import-post-actions.sh": "20a7caac14f0c90179a1be6c1a4dc96061d2ee171c4874e9d579582187efaf1e",
     "tools/test-import-refactor.sh": "1d1234efef6fa74ca048b372000932d03458812fa9e7ff2931f3c9a1950beac6",
     "tools/test-install-tools-126.sh": "3d0b8716c937409ca47639ff7f805c736fc8bd82e8c36e995fc1504afe94a80e",
@@ -152,7 +154,6 @@
     "tools/test-ui-box-containment.sh": "3defe21a1a86f589931fe70c74fccc9faecfdc84dbf1ad5cc6374bf1434f1e55",
     "tools/test-update-recovery-109.sh": "8960b6cfc5219e6503e4605c4e94806702ca044e940d342509d962f0231f4083",
     "tools/test-update-restart.sh": "c16c761a08c0556c8630565221a074e0d33e7beb8b439c0918bbc8ad257b2847",
-    "tools/test-updater-refactor.sh": "8e6d44011b8dee87b95b340a4dd520d7b512865d92ae8a66b39b4c1f115e6a70",
-    "tools/test-import-browser-131.sh": "042fa98fde2ac03a30f0a20649a8ed600f48b523530d5abd2d06afbfcbcbda3e"
+    "tools/test-updater-refactor.sh": "8e6d44011b8dee87b95b340a4dd520d7b512865d92ae8a66b39b4c1f115e6a70"
   }
 }

@@ -1,3 +1,11 @@
+## v1.0.132 (2026-10-19)
+
+- Importação simplificada: projetos novos passam diretamente da escolha de origem, modo e destino à revisão final. A tela de conflitos não aparece quando não há arquivos coincidentes.
+- Os padrões de exclusão (`node_modules`, `.git`, `dist`, `build`) são exibidos na revisão e aplicados automaticamente na cópia, eliminando a segunda pergunta de limpeza após a confirmação.
+- Ao encontrar arquivos com o mesmo nome, o assistente apresenta uma única escolha de tratamento: preservar os existentes (padrão seguro), substituir os arquivos coincidentes ou renomear os novos. Projetos com pasta própria mantêm opção explícita de substituição integral.
+- O motor de cópia recebe a decisão do assistente, sem perguntar novamente nem tentar instalar `rsync` durante a importação. A cópia independente do assistente conserva seu comportamento anterior.
+- A navegação Voltar ignora automaticamente a etapa de conflitos quando ela foi dispensada. Adicionados testes com importação inédita, reimportação, arquivos excluídos e substituição mediante confirmação.
+
 ## v1.0.131 (2026-10-18)
 
 - A etapa 1 da importação agora é um navegador de arquivos: escolher uma pasta entra nela; o conteúdo não é tratado automaticamente como um projeto. Para importar uma pasta completa, use o atalho [I] dentro dela.
