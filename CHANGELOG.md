@@ -1,3 +1,11 @@
+## v1.0.134 (2026-11-09)
+
+- **Meus projetos → [A] AL Sistemas na AWS**: assistente para configurar SSH, testar conexão, escolher ZIP em Downloads (inclusive subpastas), enviar via SCP e atualizar o painel na EC2, sem comandos manuais repetitivos. Disponível mesmo quando não existem projetos locais.
+- Servidor remoto: exige Ubuntu 24.04, identidade SSH já confiável, usuário com sudo sem senha, instalação prévia do AL Sistemas, verificação de integridade e versão superior; executa plano e backup privado antes de `--core-upgrade --allow-existing-host`.
+- Progresso por etapas reais, health check HTTP da nova versão, diagnóstico remoto e limpeza dos temporários da operação. Em falha não sinaliza instalação concluída.
+- Configuração privada sem senhas nem cópia da chave; confirmação dupla, aviso para snapshot EBS e proteção dos projetos existentes. Sem rollback automático global, que requer operação administrativa supervisionada.
+- Testes de configuração, pacote, rejeição de versões inadequadas, cancelamento e implantação simulada sem rede real.
+
 ## v1.0.133 (2026-10-19)
 
 - **Central de execução → [T] Iniciar tudo** ativa os serviços já instalados em sequência: MariaDB local, phpMyAdmin local e o projeto escolhido, sem exigir uma confirmação em cada submenu.

@@ -362,9 +362,9 @@ gerenciar_projetos() {
         if [ ${#PROJETOS_ENCONTRADOS[@]} -eq 0 ]; then
             cabecalho_tela "📂 Meus projetos" "Nenhum projeto detectado"
             caixa_simples "📭 Lista vazia" "Use a importação assistida para adicionar seu primeiro projeto."
-            rodape_atalhos "[0] Voltar  •  [L] Limpeza"
+            rodape_atalhos "[0] Voltar  •  [A] AWS  •  [L] Limpeza"
             ler_opcao
-            case "${RESPOSTA_MENU,,}" in 0) return ;; l) menu_exclusao_painel ;; *) feedback_curto "Opção inválida." ;; esac
+            case "${RESPOSTA_MENU,,}" in 0) return ;; a) menu_aws_alsistemas ;; l) menu_exclusao_painel ;; *) feedback_curto "Opção inválida." ;; esac
             continue
         fi
 
@@ -378,15 +378,17 @@ gerenciar_projetos() {
             opcoes+=("$i|📦|$NOME_PROJETO$([ "$PROJETO_TEM_APELIDO" = true ] && printf ' ⭐')|$PROJ_RESUMO")
             i=$((i+1))
         done
+        opcoes+=("A|☁️|AL Sistemas na AWS|Enviar ZIP e atualizar EC2 com backup")
         opcoes+=("L|🧹|Limpeza do Painel|Excluir projetos e backups com confirmação")
         menu_unificado "📂 MEUS PROJETOS" \
             "${#PROJETOS_ENCONTRADOS[@]} projeto(s) • ${total_ativos} componente(s) ativo(s)" \
-            "[0] Voltar  •  [número] Abrir  •  [L] Limpeza" \
+            "[0] Voltar  •  [número] Abrir  •  [A] AWS  •  [L] Limpeza" \
             "${opcoes[@]}"
         ler_opcao
         case "${RESPOSTA_MENU,,}" in
             0) return ;;
             l) menu_exclusao_painel ;;
+            a) menu_aws_alsistemas ;;
             *)
                 if [[ "$RESPOSTA_MENU" =~ ^[0-9]+$ ]] && [ "$RESPOSTA_MENU" -ge 1 ] && [ "$RESPOSTA_MENU" -le ${#PROJETOS_ENCONTRADOS[@]} ]; then
                     entrada="${PROJETOS_ENCONTRADOS[$((RESPOSTA_MENU-1))]}"
@@ -603,3 +605,7 @@ source "$PROJECTS_MODULE_DIR/projects_github.sh"
 source "$PROJECTS_MODULE_DIR/projects_storage.sh"
 # shellcheck source=/dev/null
 source "$PROJECTS_MODULE_DIR/projects_restore.sh"
+
+# Hospedagem remota: não transforma o servidor em projeto local do Painel.
+# shellcheck source=/dev/null
+source "$PROJECTS_MODULE_DIR/projects_aws.sh"

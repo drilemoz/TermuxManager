@@ -1,3 +1,23 @@
+ajuda_al_sistemas_aws() {
+    cabecalho_tela "☁️ AL Sistemas na AWS" "Atualização da EC2 pelo Termux"
+    caixa_simples "Onde fica" \
+        "Abra Meus projetos e escolha [A] AL Sistemas na AWS." \
+        "Funciona também se não houver projetos importados no Termux."
+    caixa_simples "Antes de começar" \
+        "Instale openssh e unzip; copie a chave para ~/.ssh/ e use chmod 600." \
+        "Configure IP e porta atuais da EC2, usuário SSH e chave." \
+        "Na primeira conexão SSH, confira a identidade do servidor manualmente."
+    caixa_simples "Atualização" \
+        "Selecione o ZIP do AL Sistemas, revise versão e SHA-256." \
+        "Crie snapshot EBS quando possível e digite INSTALAR." \
+        "O script envia, valida, faz backup, instala e testa /api/health."
+    caixa_simples "Segurança" \
+        "Atualiza apenas o AL Sistemas já instalado na VPS Ubuntu 24.04." \
+        "Backups privados na EC2. Não há rollback automático da VPS." \
+        "A integridade SHA-256 não substitui a verificação da origem do ZIP."
+    pause
+}
+
 # Módulo: help.sh
 # Ajuda integrada do Termux Manager.
 
@@ -286,7 +306,7 @@ ajuda_seguranca() {
 menu_ajuda() {
     while true; do
         menu_unificado "❓ Ajuda" "Manual rápido dentro do Manager" \
-            "[0] Voltar  •  [1–11] Selecionar" \
+            "[0] Voltar  •  [1–12] Selecionar" \
             "1|🚀|Primeira instalação|Storage, extração e primeira abertura" \
             "2|🔄|Como atualizar|Pacote completo, módulo e reinício" \
             "3|📋|Funções do menu|O que cada área faz" \
@@ -298,6 +318,7 @@ menu_ajuda() {
             "9|🛟|Solução de problemas|Erros comuns e correções" \
             "10|🔐|Segurança e backups|Validação e proteção" \
             "11|🩺|Central de Diagnóstico|Erros numerados e exportação para Downloads" \
+            "12|☁️|AL Sistemas na AWS|ZIP, SSH e atualização com backup" \
             "R|📖|Abrir README|Manual completo do projeto"
         ler_opcao
         case "$RESPOSTA_MENU" in
@@ -312,6 +333,7 @@ menu_ajuda() {
             9) ajuda_problemas ;;
             10) ajuda_seguranca ;;
             11) ajuda_diagnosticos ;;
+            12) ajuda_al_sistemas_aws ;;
             r|R)
                 cabecalho_tela "📖 README.md" "Documentação completa"
                 caixa_simples "Arquivo local" "$(caminho_curto "$BASE_DIR/README.md")" \

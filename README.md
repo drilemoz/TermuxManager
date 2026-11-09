@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.133  
+**Versão atual:** 1.0.134  
 
 ### Verificação automática opcional na abertura (1.0.129)
 
@@ -569,15 +569,28 @@ Antes de ações coletivas, o Manager mostra quantidade, tamanho e conteúdo afe
 
 Backups de projetos são exportados para `Download/projetos/backups`. O Manager ignora dependências e artefatos regeneráveis como `node_modules`, `.git`, caches, `dist`, `build`, ambientes virtuais e diretórios equivalentes. A cópia temporária é removida do Termux somente depois que o arquivo em Downloads é validado por SHA-256. Arquivos de credenciais conhecidos são ignorados em backups públicos; esse backup não substitui uma cópia privada de suas chaves.
 
+
+### Atualização do AL Sistemas na AWS EC2 (1.0.134)
+
+Em **Meus projetos → [A] AL Sistemas na AWS**, o assistente oferece **Configurar SSH**, **Testar conexão**, **Atualizar por ZIP** e **Diagnóstico remoto**. Funciona mesmo sem projetos locais.
+
+1. Guarde sua chave privada em `~/.ssh/iguatamaonline.pem` com `chmod 600` e instale `pkg install openssh unzip`. A chave não é enviada à EC2, incluída em backups públicos ou salva na configuração; grava-se apenas o caminho em `~/.config/termux-manager/alsistemas-aws.conf` com permissão 600.
+2. Configure o IP **atual** da EC2, usuário `ubuntu`, porta SSH e chave. `18.217.192.20` é somente o último IP registrado, **não é verificado automaticamente**. Na primeira conexão, confira e aceite a identidade SSH do host manualmente. O Manager exige que ela já esteja em `~/.ssh/known_hosts`.
+3. Escolha o ZIP oficial do AL Sistemas em Downloads (ou em subpasta), confira versão, SHA-256 e destino, faça snapshot EBS quando possível e digite **INSTALAR**. Sem isso, nenhuma instalação inicia.
+4. O Manager envia o arquivo por SCP a uma pasta temporária privada da EC2 e executa o assistente remoto: valida SO Ubuntu 24.04 e a instalação existente, confirma SHA-256 do pacote, verifica ZIP e `SHA256SUMS.txt`, rejeita downgrade, mostra o plano do instalador, cria backup privado de código, dados e service unit, roda `instalar.sh --core-upgrade --allow-existing-host` e exige `/api/health` com a versão esperada.
+5. Em falha, não anuncia sucesso e apresenta o diagnóstico. Os backups ficam em `/var/backups/alsistemas/manual/` com acesso root. Os temporários da operação são removidos quando a conexão permite. Não há rollback automático global da VPS: restauração é procedimento manual.
+
+**Segurança:** esse menu foi feito para atualizar **somente** o AL Sistemas já instalado em `/opt/alsistemas-vps/current`. Não altera diretamente `/var/www/projetos/iguatamaonline/`, `/var/www/iguatama-teste/` ou bancos. O script de instalação do AL Sistemas ainda executa ações administrativas no painel. **SHA-256 não comprova autoria**: não use ZIPs desconhecidos. Não instale a partir de uma conexão SSH com host não autenticado.
+
 ## Atualizações
 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.133
-Tag: v1.0.133
-Release: Manager 1.0.133
-Pacote único: TermuxManager-v1.0.133.zip
+Versão: 1.0.134
+Tag: v1.0.134
+Release: Manager 1.0.134
+Pacote único: TermuxManager-v1.0.134.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

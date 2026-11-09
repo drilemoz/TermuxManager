@@ -215,17 +215,19 @@ menu_projetos_hub() {
         done
 
         menu_unificado "📁 PROJETOS" "Gerenciar, importar e acompanhar" \
-            "[0] Voltar  •  [1–4] Selecionar" \
+            "[0] Voltar  •  [1–5] Selecionar" \
             "1|📂|Meus projetos|Abrir, testar e organizar" \
             "2|📦|Importar projeto|Pasta, arquivo ou ZIP" \
             "3|🚦|Em execução|$ativos componente(s) ativo(s)" \
-            "4|♻️|Restaurar backup|Validar e recuperar TAR.GZ"
+            "4|♻️|Restaurar backup|Validar e recuperar TAR.GZ" \
+            "5|☁️|AL Sistemas na AWS|Atualizar painel da EC2 por ZIP e SSH"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) gerenciar_projetos ;;
             2) importar_projeto ;;
             3) menu_processos_ativos ;;
             4) menu_restaurar_backup_projeto ;;
+            5) menu_aws_alsistemas ;;
             0) return ;;
             *) warn "Opção inválida."; sleep 1 ;;
         esac
