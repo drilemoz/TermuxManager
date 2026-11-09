@@ -247,11 +247,12 @@ CANDIDATOS_DOWNLOADS=(
 )
 
 # Tenta achar um diretório de Downloads real e com conteúdo.
+# find -H permite inspecionar os atalhos simbólicos criados por termux-setup-storage.
 # Se nenhum tiver conteúdo, usa o primeiro que existir (mesmo vazio).
 resolver_downloads_dir() {
     local c
     for c in "${CANDIDATOS_DOWNLOADS[@]}"; do
-        if [ -d "$c" ] && [ -n "$(find "$c" -mindepth 1 -maxdepth 1 2>/dev/null)" ]; then
+        if [ -d "$c" ] && [ -n "$(find -H "$c" -mindepth 1 -maxdepth 1 2>/dev/null)" ]; then
             DOWNLOADS_DIR="$c"
             return 0
         fi
@@ -282,7 +283,7 @@ check_storage_access() {
 
     log "INFO" "DOWNLOADS_DIR resolvido para: $DOWNLOADS_DIR"
 
-    if [ -z "$(find "$DOWNLOADS_DIR" -mindepth 1 -maxdepth 1 2>/dev/null)" ]; then
+    if [ -z "$(find -H "$DOWNLOADS_DIR" -mindepth 1 -maxdepth 1 2>/dev/null)" ]; then
         warn "A pasta encontrada ($(caminho_home_relativo "$DOWNLOADS_DIR")) existe, mas está vazia ou sem permissão de leitura."
         info "Se você tem arquivos no Download do celular e eles não aparecem, rode: termux-setup-storage"
         info "e confirme a permissão de Armazenamento para o Termux nas configurações do Android."

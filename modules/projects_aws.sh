@@ -132,7 +132,10 @@ aws_escolher_zip() {
             if [ -d "$f" ] && [ ! -L "$f" ]; then pastas+=("$f")
             elif [ -f "$f" ] && [ ! -L "$f" ] && [[ "${f,,}" == *.zip ]]; then arquivos+=("$f")
             fi
-        done < <(find "$pasta" -mindepth 1 -maxdepth 1 -print0 2>/dev/null | sort -z)
+        # No Termux, ~/storage/downloads e um link simbolico para Download do Android.
+        # -H segue apenas a pasta inicial informada ao find; nao percorre links
+        # simbolicos encontrados dentro dela (arquivos ZIP/link seguem bloqueados).
+        done < <(find -H "$pasta" -mindepth 1 -maxdepth 1 -print0 2>/dev/null | sort -z)
         itens=("${pastas[@]}" "${arquivos[@]}")
         total=${#itens[@]}
         ultima=$((total > 0 ? (total - 1) / 10 : 0))

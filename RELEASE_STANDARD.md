@@ -8,7 +8,7 @@ O projeto usa Versionamento Semântico: `MAJOR.MINOR.PATCH`.
 - **MINOR:** nova funcionalidade compatível;
 - **PATCH:** correção, documentação ou melhoria visual sem quebra de compatibilidade.
 
-Versão atual de referência: `1.0.134`.
+Versão atual de referência: `1.0.135`.
 
 ## Padrão da release
 
@@ -25,10 +25,10 @@ Integridade: MANIFEST.json dentro do pacote
 Para a versão atual:
 
 ```text
-Versão interna: 1.0.134
-Tag: v1.0.134
-Título: Manager 1.0.134
-Pacote único: TermuxManager-v1.0.134.zip
+Versão interna: 1.0.135
+Tag: v1.0.135
+Título: Manager 1.0.135
+Pacote único: TermuxManager-v1.0.135.zip
 Integridade: MANIFEST.json dentro do pacote
 ```
 
@@ -101,6 +101,10 @@ A integração GitHub deve registrar falhas em `~/.termux-manager/logs/github.lo
 ## Atualização pelo GitHub
 
 A branch `main` é o canal estável usado pela atualização automática do Manager. Cada alteração publicada na `main` deve incrementar a versão e manter `MANIFEST.json`, README e CHANGELOG sincronizados. O Manager consulta o manifesto remoto, valida os hashes do arquivo baixado e cria backup antes de substituir a instalação atual.
+
+#### Correção do seletor AWS 1.0.135
+
+Navegadores de ZIPs do AL Sistemas e do atualizador local do Manager, além da detecção de Downloads com arquivos, reconhecem corretamente o link simbólico `~/storage/downloads`, sem seguir arquivos simbólicos internos. Testes automatizados reproduzem a falha e verificam a correção.
 
 #### AWS AL Sistemas 1.0.134
 

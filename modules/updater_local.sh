@@ -1,5 +1,6 @@
 # Submódulo: updater_local.sh
 # Descoberta e instalação de atualizações locais/isoladas.
+# find -H acessa o link Downloads do Termux, sem seguir arquivos simbólicos internos.
 
 listar_pacotes_completos() {
     ATUALIZACOES_ENCONTRADAS=()
@@ -11,7 +12,7 @@ listar_pacotes_completos() {
     # outro nome (ex.: "manager (1).zip", "download.zip").
     while IFS= read -r -d '' arquivo; do
         ATUALIZACOES_ENCONTRADAS+=("$arquivo")
-    done < <(find "$DOWNLOADS_DIR" -mindepth 1 -maxdepth 1 -type f \
+    done < <(find -H "$DOWNLOADS_DIR" -mindepth 1 -maxdepth 1 -type f \
         -iname '*.zip' \
         -print0 2>/dev/null | sort -z)
 }
@@ -21,11 +22,11 @@ listar_modulos_atualizacao() {
     local arquivo nome
     while IFS= read -r -d '' arquivo; do
         nome="$(basename "$arquivo")"
-        nome="${nome%.module.sh}.sh"
+        [[ "$nome" == *.module.sh ]] && nome="${nome%.module.sh}.sh"
         if [ "$nome" = "manager.sh" ] || [ -f "$MODULES_DIR/$nome" ]; then
             ATUALIZACOES_ENCONTRADAS+=("$arquivo")
         fi
-    done < <(find "$DOWNLOADS_DIR" -mindepth 1 -maxdepth 1 -type f \
+    done < <(find -H "$DOWNLOADS_DIR" -mindepth 1 -maxdepth 1 -type f \
         \( -iname 'manager.sh' -o -iname '*.module.sh' -o -iname '*.sh' \) \
         -print0 2>/dev/null | sort -z)
 }
@@ -35,7 +36,7 @@ instalar_modulo_manager() {
     local arquivo="$1" updates_dir="$BASE_DIR/.updates" stamp nome destino descricao
     stamp="$(date '+%Y%m%d_%H%M%S')"; mkdir -p "$updates_dir"
     bash -n "$arquivo" || { error "O arquivo possui erro de sintaxe."; pause; return; }
-    nome="$(basename "$arquivo")"; nome="${nome%.module.sh}.sh"
+    nome="$(basename "$arquivo")"; [[ "$nome" == *.module.sh ]] && nome="${nome%.module.sh}.sh"
     if [ "$nome" = "manager.sh" ]; then destino="$SELF_PATH"; descricao="arquivo principal"
     elif [ -f "$MODULES_DIR/$nome" ]; then destino="$MODULES_DIR/$nome"; descricao="módulo $nome"
     else error "O arquivo não corresponde a um módulo instalado."; pause; return; fi

@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.134  
+**Versão atual:** 1.0.135  
 
 ### Verificação automática opcional na abertura (1.0.129)
 
@@ -570,6 +570,12 @@ Antes de ações coletivas, o Manager mostra quantidade, tamanho e conteúdo afe
 Backups de projetos são exportados para `Download/projetos/backups`. O Manager ignora dependências e artefatos regeneráveis como `node_modules`, `.git`, caches, `dist`, `build`, ambientes virtuais e diretórios equivalentes. A cópia temporária é removida do Termux somente depois que o arquivo em Downloads é validado por SHA-256. Arquivos de credenciais conhecidos são ignorados em backups públicos; esse backup não substitui uma cópia privada de suas chaves.
 
 
+### Correção do seletor ZIP na AWS (1.0.135)
+
+- Nos menus **Meus projetos → [A] AL Sistemas na AWS** e **Atualizar Manager → Atualizar por ZIP**, os seletores agora acessam corretamente `~/storage/downloads`, que no Android costuma ser um link simbólico para a pasta pública Download.
+- A listagem e a verificação de arquivos em Downloads seguem somente o link do diretório inicial, sem seguir arquivos simbólicos internos. Subpastas normais, atalhos **D/H**, navegação e validações de segurança continuam disponíveis.
+- Se os arquivos não aparecerem, confirme a permissão de armazenamento do Termux (`termux-setup-storage`) e a presença real do ZIP na pasta Download.
+
 ### Atualização do AL Sistemas na AWS EC2 (1.0.134)
 
 Em **Meus projetos → [A] AL Sistemas na AWS**, o assistente oferece **Configurar SSH**, **Testar conexão**, **Atualizar por ZIP** e **Diagnóstico remoto**. Funciona mesmo sem projetos locais.
@@ -587,10 +593,10 @@ Em **Meus projetos → [A] AL Sistemas na AWS**, o assistente oferece **Configur
 O padrão oficial é:
 
 ```text
-Versão: 1.0.134
-Tag: v1.0.134
-Release: Manager 1.0.134
-Pacote único: TermuxManager-v1.0.134.zip
+Versão: 1.0.135
+Tag: v1.0.135
+Release: Manager 1.0.135
+Pacote único: TermuxManager-v1.0.135.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

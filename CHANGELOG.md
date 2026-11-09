@@ -1,3 +1,9 @@
+## v1.0.135 (2026-11-09)
+
+- Corrigidos os seletores de ZIPs de **Meus projetos → [A] AL Sistemas na AWS** e **Atualizar Manager → Atualizar por ZIP**, além da identificação de arquivos em Downloads: `~/storage/downloads` costuma ser um link simbólico no Termux, que não era percorrido pela listagem anterior. A busca agora segue apenas o diretório inicial com `find -H`, sem seguir links para arquivos ZIP dentro dele.
+- Mantidos seleção por número, navegação de subpastas, atalhos Downloads/Home, filtros `.zip`, bloqueio de arquivos simbólicos e validação antes do envio à EC2. O atualizador local também localiza módulos `.sh` nos Downloads simbólicos e normaliza corretamente `manager.sh` sem duplicar a extensão. Adicionado teste de regressão com Downloads simbólico e seleção de ZIP real.
+- Não modifica o AL Sistemas ou os projetos da EC2; atualiza apenas o Termux Manager local.
+
 ## v1.0.134 (2026-11-09)
 
 - **Meus projetos → [A] AL Sistemas na AWS**: assistente para configurar SSH, testar conexão, escolher ZIP em Downloads (inclusive subpastas), enviar via SCP e atualizar o painel na EC2, sem comandos manuais repetitivos. Disponível mesmo quando não existem projetos locais.
