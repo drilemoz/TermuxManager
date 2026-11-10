@@ -362,9 +362,9 @@ gerenciar_projetos() {
         if [ ${#PROJETOS_ENCONTRADOS[@]} -eq 0 ]; then
             cabecalho_tela "📂 Meus projetos" "Nenhum projeto detectado"
             caixa_simples "📭 Lista vazia" "Use a importação assistida para adicionar seu primeiro projeto."
-            rodape_atalhos "[0] Voltar  •  [A] AWS  •  [L] Limpeza"
+            rodape_atalhos "[0] Voltar  •  [A] AL Sistemas  •  [I] IguatamaOnline  •  [L] Limpeza"
             ler_opcao
-            case "${RESPOSTA_MENU,,}" in 0) return ;; a) menu_aws_alsistemas ;; l) menu_exclusao_painel ;; *) feedback_curto "Opção inválida." ;; esac
+            case "${RESPOSTA_MENU,,}" in 0) return ;; a) menu_aws_alsistemas ;; i) menu_aws_meusite ;; l) menu_exclusao_painel ;; *) feedback_curto "Opção inválida." ;; esac
             continue
         fi
 
@@ -379,16 +379,18 @@ gerenciar_projetos() {
             i=$((i+1))
         done
         opcoes+=("A|☁️|AL Sistemas na AWS|Enviar ZIP e atualizar EC2 com backup")
+        opcoes+=("I|📰|IguatamaOnline na AWS|Verificar, corrigir ou atualizar Meu-Site")
         opcoes+=("L|🧹|Limpeza do Painel|Excluir projetos e backups com confirmação")
         menu_unificado "📂 MEUS PROJETOS" \
             "${#PROJETOS_ENCONTRADOS[@]} projeto(s) • ${total_ativos} componente(s) ativo(s)" \
-            "[0] Voltar  •  [número] Abrir  •  [A] AWS  •  [L] Limpeza" \
+            "[0] Voltar  •  [número] Abrir  •  [A] AL Sistemas  •  [I] IguatamaOnline  •  [L] Limpeza" \
             "${opcoes[@]}"
         ler_opcao
         case "${RESPOSTA_MENU,,}" in
             0) return ;;
             l) menu_exclusao_painel ;;
             a) menu_aws_alsistemas ;;
+            i) menu_aws_meusite ;;
             *)
                 if [[ "$RESPOSTA_MENU" =~ ^[0-9]+$ ]] && [ "$RESPOSTA_MENU" -ge 1 ] && [ "$RESPOSTA_MENU" -le ${#PROJETOS_ENCONTRADOS[@]} ]; then
                     entrada="${PROJETOS_ENCONTRADOS[$((RESPOSTA_MENU-1))]}"
@@ -609,3 +611,6 @@ source "$PROJECTS_MODULE_DIR/projects_restore.sh"
 # Hospedagem remota: não transforma o servidor em projeto local do Painel.
 # shellcheck source=/dev/null
 source "$PROJECTS_MODULE_DIR/projects_aws.sh"
+# Atalho independente do site; usa a mesma conexão SSH configurada.
+# shellcheck source=/dev/null
+source "$PROJECTS_MODULE_DIR/projects_meusite.sh"

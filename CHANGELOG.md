@@ -1,3 +1,10 @@
+## v1.0.136 (2026-11-10)
+
+- Adicionado atalho **Gerenciar projetos → [I] IguatamaOnline na AWS**, ao lado do AL Sistemas existente. Submenu separado com diagnóstico (`--check`), patch do atualizador PHP (`--patch`) e atualização completa (`--update`).
+- O script independente `tools/atualizar-meu-site-termux.sh` acompanha o ZIP do Manager. Compartilha somente a configuração SSH privada existente (host, usuário, porta e caminho da chave), sem transferir segredos ou misturar os destinos dos dois projetos. Porta SSH configurável também é passada ao SCP.
+- Mantidas confirmações de operações de escrita, verificação dos ZIPs, backup de código, tentativa de reversão, proteção à instalação de testes e bloqueio de downgrade. O Manager não atualiza o portal ao ser instalado; testes reais na EC2 ainda pendentes.
+- Testes específicos validam menu, argumentos, falha/ausência do script e nenhuma chamada SSH nos testes locais.
+
 ## v1.0.135 (2026-11-09)
 
 - Corrigidos os seletores de ZIPs de **Meus projetos → [A] AL Sistemas na AWS** e **Atualizar Manager → Atualizar por ZIP**, além da identificação de arquivos em Downloads: `~/storage/downloads` costuma ser um link simbólico no Termux, que não era percorrido pela listagem anterior. A busca agora segue apenas o diretório inicial com `find -H`, sem seguir links para arquivos ZIP dentro dele.

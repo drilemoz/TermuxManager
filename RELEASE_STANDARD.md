@@ -8,7 +8,7 @@ O projeto usa Versionamento Semântico: `MAJOR.MINOR.PATCH`.
 - **MINOR:** nova funcionalidade compatível;
 - **PATCH:** correção, documentação ou melhoria visual sem quebra de compatibilidade.
 
-Versão atual de referência: `1.0.135`.
+Versão atual de referência: `1.0.136`.
 
 ## Padrão da release
 
@@ -25,10 +25,10 @@ Integridade: MANIFEST.json dentro do pacote
 Para a versão atual:
 
 ```text
-Versão interna: 1.0.135
-Tag: v1.0.135
-Título: Manager 1.0.135
-Pacote único: TermuxManager-v1.0.135.zip
+Versão interna: 1.0.136
+Tag: v1.0.136
+Título: Manager 1.0.136
+Pacote único: TermuxManager-v1.0.136.zip
 Integridade: MANIFEST.json dentro do pacote
 ```
 
@@ -101,6 +101,10 @@ A integração GitHub deve registrar falhas em `~/.termux-manager/logs/github.lo
 ## Atualização pelo GitHub
 
 A branch `main` é o canal estável usado pela atualização automática do Manager. Cada alteração publicada na `main` deve incrementar a versão e manter `MANIFEST.json`, README e CHANGELOG sincronizados. O Manager consulta o manifesto remoto, valida os hashes do arquivo baixado e cria backup antes de substituir a instalação atual.
+
+#### Atalho Meu-Site 1.0.136
+
+Menu Gerenciar projetos inclui [I] IguatamaOnline na AWS. O script embarcado continua independente, com confirmação para qualquer escrita e sem alterar AL Sistemas.
 
 #### Correção do seletor AWS 1.0.135
 

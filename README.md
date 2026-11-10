@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.135  
+**Versão atual:** 1.0.136  
 
 ### Verificação automática opcional na abertura (1.0.129)
 
@@ -570,6 +570,13 @@ Antes de ações coletivas, o Manager mostra quantidade, tamanho e conteúdo afe
 Backups de projetos são exportados para `Download/projetos/backups`. O Manager ignora dependências e artefatos regeneráveis como `node_modules`, `.git`, caches, `dist`, `build`, ambientes virtuais e diretórios equivalentes. A cópia temporária é removida do Termux somente depois que o arquivo em Downloads é validado por SHA-256. Arquivos de credenciais conhecidos são ignorados em backups públicos; esse backup não substitui uma cópia privada de suas chaves.
 
 
+### Atalho IguatamaOnline na AWS (1.0.136)
+
+- Em **Gerenciar projetos → [I] IguatamaOnline na AWS** há um atalho para o atualizador SSH integrado ao pacote do Manager: **Verificar servidor** (`--check`), **Aplicar patch** (`--patch`) e **Atualizar** (`--update`). O script completo está em `tools/atualizar-meu-site-termux.sh`; não é preciso copiá-lo separadamente.
+- Usa a mesma configuração SSH privada do menu do AL Sistemas (`~/.config/termux-manager/alsistemas-aws.conf`), inclusive porta customizada; não lê senhas, não copia a chave SSH e não altera o AL Sistemas. O destino padrão do script é `/var/www/projetos/iguatamaonline` e pode ser substituído pela variável `MEUSITE_SITE` (após validar produção).
+- O modo `--patch` exige o ZIP específico em Downloads; `--update` aceita `Atualizacao-vX.Y.Z.zip` ou `Atualizacao-Meu-Site-vX.Y.Z.zip` em Downloads e verifica Releases oficiais. Requer confirmações, acesso SSH/sudo e backups externos de MariaDB, storage e uploads. A pasta de testes `iguatama-teste` é protegida pelo script.
+- Essa integração é **somente um atalho**: não executa atualizações automaticamente, não configura o worker `iguanews-deploy` e não altera a instalação do portal ao instalar o Manager.
+
 ### Correção do seletor ZIP na AWS (1.0.135)
 
 - Nos menus **Meus projetos → [A] AL Sistemas na AWS** e **Atualizar Manager → Atualizar por ZIP**, os seletores agora acessam corretamente `~/storage/downloads`, que no Android costuma ser um link simbólico para a pasta pública Download.
@@ -593,10 +600,10 @@ Em **Meus projetos → [A] AL Sistemas na AWS**, o assistente oferece **Configur
 O padrão oficial é:
 
 ```text
-Versão: 1.0.135
-Tag: v1.0.135
-Release: Manager 1.0.135
-Pacote único: TermuxManager-v1.0.135.zip
+Versão: 1.0.136
+Tag: v1.0.136
+Release: Manager 1.0.136
+Pacote único: TermuxManager-v1.0.136.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
