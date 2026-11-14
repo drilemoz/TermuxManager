@@ -550,9 +550,9 @@ if [[ "$MODE" != check ]]; then
   if [[ "$MODE" == update ]]; then
     msg 'IMPORTANTE: este shell cria backup do CÓDIGO, mas NÃO salva MariaDB, storage nem uploads.'
     msg 'Antes de prosseguir, tenha cópia externa comprovada desses dados e/ou snapshot EBS.'
-    printf 'Confirma que esses backups já foram verificados? Digite BACKUP-CONFIRMADO: '
+    printf 'Os backups já foram verificados? (s/N): '
     read -r ack
-    [[ "$ack" == BACKUP-CONFIRMADO ]] || fail 'Sem confirmação de backup externo; cancelado.'
+    [[ "$ack" =~ ^[sS]$ ]] || fail 'Sem confirmação de backup externo; cancelado.'
   else
     msg 'Patch de um arquivo com cópia automática do updater.php anterior.'
     printf 'Digite APLICAR para continuar: '

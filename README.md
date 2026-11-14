@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.136  
+**Versão atual:** 1.0.137  
 
 ### Verificação automática opcional na abertura (1.0.129)
 
@@ -600,10 +600,10 @@ Em **Meus projetos → [A] AL Sistemas na AWS**, o assistente oferece **Configur
 O padrão oficial é:
 
 ```text
-Versão: 1.0.136
-Tag: v1.0.136
-Release: Manager 1.0.136
-Pacote único: TermuxManager-v1.0.136.zip
+Versão: 1.0.137
+Tag: v1.0.137
+Release: Manager 1.0.137
+Pacote único: TermuxManager-v1.0.137.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

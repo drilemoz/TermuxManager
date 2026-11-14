@@ -1,3 +1,8 @@
+## v1.0.137 (2026-11-13)
+
+- **IguatamaOnline na AWS → Atualizar**: removida a necessidade de digitar `BACKUP-CONFIRMADO`. A confirmação de que os backups externos (MariaDB, storage, uploads e/ou snapshot EBS) já foram verificados agora é um simples `s/N`; qualquer resposta diferente de `s` cancela a operação.
+- Mantidos o aviso de que o script cria backup apenas do código, o backup automático do código antes de substituir arquivos, a tentativa de reversão, o bloqueio de downgrade e a confirmação `APLICAR` do patch.
+
 ## v1.0.136 (2026-11-10)
 
 - Adicionado atalho **Gerenciar projetos → [I] IguatamaOnline na AWS**, ao lado do AL Sistemas existente. Submenu separado com diagnóstico (`--check`), patch do atualizador PHP (`--patch`) e atualização completa (`--update`).
