@@ -10,7 +10,10 @@ REPO='drilemoz/Meu-Site'
 AWS_HOST="${MEUSITE_HOST:-18.217.192.20}"
 AWS_USER="${MEUSITE_USER:-ubuntu}"
 AWS_PORT="${MEUSITE_PORT:-22}"
-SSH_KEY="${MEUSITE_KEY:-$HOME/.ssh/iguatamaonline.pem}"
+SSH_KEY="${MEUSITE_KEY:-$HOME/.ssh/iguatamaonline}"
+if [[ -z ${MEUSITE_KEY:-} && ! -e "$SSH_KEY" && ! -L "$SSH_KEY" && -f "$HOME/.ssh/iguatamaonline.pem" && ! -L "$HOME/.ssh/iguatamaonline.pem" ]]; then
+  SSH_KEY="$HOME/.ssh/iguatamaonline.pem"
+fi
 SITE="${MEUSITE_SITE:-/var/www/projetos/iguatamaonline}"
 DOWNLOADS="${MEUSITE_DOWNLOADS:-$HOME/storage/downloads}"
 WORK="$HOME/.cache/meu-site-termux"
@@ -59,7 +62,7 @@ trap 'rc=$?; if ((rc != 0)); then printf "\n[Meu-Site Termux] Falha (%d). Log: %
   msg "ATENÇÃO: destino personalizado: $SITE"
   msg 'Confira --check antes de executar um modo de escrita.'
 }
-[[ -f "$SSH_KEY" ]] || fail "Chave SSH não encontrada: $SSH_KEY"
+[[ -f "$SSH_KEY" && ! -L "$SSH_KEY" && "$SSH_KEY" == "$HOME/.ssh/"* ]] || fail "Chave SSH não encontrada: $SSH_KEY"
 chmod 600 "$SSH_KEY" || fail 'Falha ao proteger chave SSH.'
 if [[ ! -d "$DOWNLOADS" && -d /sdcard/Download ]]; then DOWNLOADS=/sdcard/Download; fi
 if [[ "$MODE" != check ]]; then
@@ -79,9 +82,9 @@ version_greater() {
   [[ "$1" != "$2" && "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n 1)" == "$1" ]]
 }
 REMOTE="$AWS_USER@$AWS_HOST"
-SSH_OPTS=(-i "$SSH_KEY" -p "$AWS_PORT" -o BatchMode=yes -o ConnectTimeout=15 \
+SSH_OPTS=(-i "$SSH_KEY" -p "$AWS_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 \
   -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=yes)
-SCP_OPTS=(-i "$SSH_KEY" -P "$AWS_PORT" -o BatchMode=yes -o ConnectTimeout=15 \
+SCP_OPTS=(-i "$SSH_KEY" -P "$AWS_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 \
   -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=yes)
 REMOTE_DIR="/home/$AWS_USER/.cache/meu-site-termux"
 REMOTE_SCRIPT="$REMOTE_DIR/deploy-iguatama.py"

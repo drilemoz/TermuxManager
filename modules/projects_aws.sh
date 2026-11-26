@@ -3,15 +3,18 @@
 # valida, cria backup privado e usa o instalador de atualização do AL Sistemas.
 
 AWS_CONFIG_FILE="$HOME/.config/termux-manager/alsistemas-aws.conf"
-AWS_HOST="" AWS_USER="ubuntu" AWS_PORT="22" AWS_KEY="$HOME/.ssh/iguatamaonline.pem"
+AWS_HOST="" AWS_USER="ubuntu" AWS_PORT="22" AWS_KEY="$HOME/.ssh/iguatamaonline"
 AWS_ZIP="" AWS_PACKAGE_VERSION="" AWS_PACKAGE_SHA=""
 
 aws_carregar_config() {
     AWS_HOST="18.217.192.20"  # Último IP conhecido; o usuário deve conferir no console EC2.
     AWS_USER="ubuntu"
     AWS_PORT="22"
-    AWS_KEY="$HOME/.ssh/iguatamaonline.pem"
-    [ -f "$AWS_CONFIG_FILE" ] && [ ! -L "$AWS_CONFIG_FILE" ] || return 0
+    AWS_KEY="$HOME/.ssh/iguatamaonline"
+    if [ ! -f "$AWS_CONFIG_FILE" ] || [ -L "$AWS_CONFIG_FILE" ]; then
+        aws_sugerir_chave
+        return 0
+    fi
     local key value
     while IFS='=' read -r key value || [ -n "${key:-}" ]; do
         case "$key" in
@@ -21,7 +24,35 @@ aws_carregar_config() {
             ssh_key) AWS_KEY="$value" ;;
         esac
     done < "$AWS_CONFIG_FILE"
+    aws_sugerir_chave
 }
+
+aws_sugerir_chave() {
+    # Somente caminhos conhecidos; nunca substitui uma chave existente.
+    [ "$AWS_KEY" = "$HOME/.ssh/iguatamaonline.pem" ] || [ "$AWS_KEY" = "$HOME/.ssh/iguatamaonline" ] || return 0
+    [ ! -e "$AWS_KEY" ] && [ ! -L "$AWS_KEY" ] || return 0
+    local candidate
+    for candidate in "$HOME/.ssh/iguatamaonline" "$HOME/.ssh/iguatamaonline.pem"; do
+        if [ -f "$candidate" ] && [ ! -L "$candidate" ]; then AWS_KEY="$candidate"; return 0; fi
+    done
+    return 0
+}
+
+aws_escolher_chave() {
+    local f n=0 resposta
+    local -a keys=()
+    for f in "$HOME"/.ssh/*; do
+        [ -f "$f" ] && [ ! -L "$f" ] || continue
+        grep -Eq "^-----BEGIN (OPENSSH |RSA |EC |DSA |ENCRYPTED )?PRIVATE KEY-----$" "$f" || continue
+        keys+=("$f"); n=$((n+1)); printf "%s) %s\n" "$n" "$(basename "$f")"
+    done
+    ((n>0)) || { info "Nenhuma chave privada encontrada. Gere uma com ssh-keygen e autorize a chave pública na AWS."; return 1; }
+    printf "Escolha a chave (Enter cancela): "
+    IFS= read -r resposta || return 1
+    [[ "$resposta" =~ ^[0-9]{1,5}$ ]] && ((10#$resposta>=1 && 10#$resposta<=n)) || return 1
+    AWS_KEY="${keys[10#$resposta-1]}"
+}
+
 
 aws_validar_config() {
     [[ "$AWS_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}$ ]] || { error "Endereço AWS inválido."; return 1; }
@@ -75,10 +106,12 @@ aws_configurar() {
     printf 'Porta SSH [%s]: ' "$AWS_PORT"
     IFS= read -r resposta || return 1
     [ -z "$resposta" ] || AWS_PORT="$resposta"
+    info "Digite L para listar chaves privadas existentes ou Enter para manter a sugerida."
     printf 'Chave SSH [%s]: ' "$(caminho_home_relativo "$AWS_KEY")"
     IFS= read -r resposta || return 1
     if [ -n "$resposta" ]; then
         case "$resposta" in
+            L|l) aws_escolher_chave || { pause; return 1; } ;;
             '~/'*) AWS_KEY="$HOME/${resposta#\~/}" ;;
             /*) AWS_KEY="$resposta" ;;
             *) error "Informe o caminho absoluto ou ~/.ssh/nome.pem"; pause; return 1 ;;
@@ -87,6 +120,7 @@ aws_configurar() {
     if aws_salvar_config; then
         ok "Conexão salva. Verifique o acesso SSH antes de atualizar."
         info "A identidade do servidor precisa estar registrada em ~/.ssh/known_hosts."
+        info "Se a chave tiver senha, carregue-a no ssh-agent antes das atualizações."
     else
         error "Configuração não salva. Nenhuma conexão foi iniciada."
     fi
@@ -95,7 +129,7 @@ aws_configurar() {
 
 aws_ssh() {
     local command_str="$1"
-    ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=12 \
+    ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=12 \
         -o ServerAliveInterval=10 -o ServerAliveCountMax=3 \
         -p "$AWS_PORT" -i "$AWS_KEY" \
         "$AWS_USER@$AWS_HOST" "$command_str"
@@ -117,7 +151,9 @@ aws_testar_conexao() {
         ok "SSH autenticado."
     else
         error "Falha de SSH. Confira IP, porta, chave, Security Group e known_hosts."
-        info "Na primeira conexão, use SSH manualmente para conferir a chave do host."
+        info "Na primeira conexão, confira a impressão digital do servidor antes de aceitar."
+        info "Teste manual: ssh -i \"$AWS_KEY\" -p $AWS_PORT $AWS_USER@$AWS_HOST"
+        info "Chave com senha: eval \$(ssh-agent -s); ssh-add \"$AWS_KEY\""
     fi
     pause
 }
@@ -241,7 +277,7 @@ aws_atualizar_alsistemas() {
         return 1
     fi
     info "[2/6] Enviando ZIP por SCP..."
-    if scp -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=12 \
+    if scp -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=12 \
         -P "$AWS_PORT" -i "$AWS_KEY" -- "$AWS_ZIP" \
         "$AWS_USER@$AWS_HOST:.cache/termux-manager-aws/$runid/package.zip"; then
         upload_ok=true

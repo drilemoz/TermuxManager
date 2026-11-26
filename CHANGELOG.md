@@ -1,3 +1,9 @@
+## v1.0.138 (2026-11-25)
+
+- AWS: sugere a chave atual sem extensão e mantém compatibilidade com .pem; lista chaves privadas locais na configuração.
+- SSH/SCP usam IdentitiesOnly e mantêm validação do host; instruções para ssh-agent.
+- Migrações de banco continuam exigindo procedimento assistido.
+
 ## v1.0.137 (2026-11-13)
 
 - **IguatamaOnline na AWS → Atualizar**: removida a necessidade de digitar `BACKUP-CONFIRMADO`. A confirmação de que os backups externos (MariaDB, storage, uploads e/ou snapshot EBS) já foram verificados agora é um simples `s/N`; qualquer resposta diferente de `s` cancela a operação.
