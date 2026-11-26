@@ -34,7 +34,7 @@ Arquivos aceitos em Downloads:
 
 Variáveis opcionais: MEUSITE_HOST, MEUSITE_USER, MEUSITE_KEY, MEUSITE_SITE,
 MEUSITE_DOWNLOADS, MEUSITE_PORT. Exige sudo -n na EC2. Não altera serviços AL Sistemas.
-Atualização cria backup do código e, na migração 37→38, backup lógico do banco. Mantenha cópias externas.
+Atualização cria backup do código e, nas migrações compatíveis 37–39, backup lógico do banco. Mantenha cópias externas.
 HELP
 }
 if (( $# > 1 )); then usage; exit 2; fi
@@ -56,6 +56,12 @@ if [[ "$MODE" == update && -t 1 && ${MEUSITE_VERBOSE:-0} != 1 ]]; then
     /Conectando por SSH/ { show("  [1/6] Conectando ao servidor..."); next }
     /Inspecionando / { show("  [2/6] Verificando atualização..."); next }
     /Produção:.*versão instalada:/ { sub(/.*versão instalada: /, ""); show("  Versão atual: " $0); next }
+    /Banco: revisão/ { sub(/.*Banco: revisão /, ""); show("  Banco de dados: " $0); next }
+    /RuntimeError:.*Migração ainda não suportada/ { show("  Não foi possível atualizar: versão do banco ainda não suportada."); next }
+    /RuntimeError:.*Revisão real do banco/ { show("  Banco e código estão em versões diferentes. Nenhum arquivo foi alterado."); next }
+    /RuntimeError:.*Lock de atualização em uso|RuntimeError:.*Serviço ocupado/ { show("  Servidor ocupado com outra atualização. Aguarde e tente novamente."); next }
+    /RuntimeError:.*Atualização ativa ou interrompida|RuntimeError:.*Atualização concorrente/ { show("  Existe uma atualização pendente. Confira o histórico antes de continuar."); next }
+    /RuntimeError:|PermissionError:|Traceback/ { show("  Falha no servidor. Consulte o log para identificar a causa."); next }
     /arquivos PHP passaram/ { show("  OK - Código verificado"); next }
     /Criando backup ANTES/ { show("  [3/6] Criando backup..."); next }
     /Backup lógico do banco salvo/ { show("  [4/6] Backup do banco pronto; migrando..."); next }
@@ -291,9 +297,14 @@ def site_preflight(site, mode):
             p = under_tree_without_links(site, rel)
             if p.exists() or p.is_symlink():
                 die('Atualização ativa ou interrompida: {}. Investigue antes de repetir.'.format(p))
-        proc = subprocess.run(['systemctl', 'is-active', '--quiet', 'iguatama-deploy.service'], check=False)
-        if proc.returncode == 0:
-            die('Serviço iguatama-deploy.service está ativo; operação simultânea bloqueada')
+        import time
+        for attempt in range(15):
+            proc = subprocess.run(['systemctl', 'is-active', '--quiet', 'iguatama-deploy.service'], check=False)
+            if proc.returncode != 0:
+                break
+            time.sleep(1)
+        else:
+            die('Serviço ocupado; tente novamente após concluir a atualização em andamento')
         if (site / 'storage/updater/vps/private/.code.lock').is_symlink():
             die('Lock de atualização inseguro')
     return version
@@ -386,7 +397,7 @@ def check_schema(site, meta):
         die('Não foi possível identificar revisão de schema instalada')
     current = int(m.group(1))
     target = meta['schema_revision']
-    if target != current and (current, target) != (37, 38):
+    if target != current and not (37 <= current < target <= 39):
         die('Migração ainda não suportada: {} -> {}'.format(current, target))
     return current, target
 
@@ -547,9 +558,12 @@ def deploy_with_lock(site, files, installed, incoming, mode, revisions=None):
             p = under_tree_without_links(site, rel)
             if p.exists() or p.is_symlink():
                 die('Atualização concorrente/interrompida: ' + str(p))
-        if subprocess.run(['systemctl', 'is-active', '--quiet', 'iguatama-deploy.service'],
-                          check=False).returncode == 0:
-            die('Worker ativo durante a obtenção do lock')
+        if subprocess.run(['systemctl', 'is-active', '--quiet', 'iguatama-deploy.service'], check=False).returncode == 0:
+            die('Serviço ocupado; tente novamente')
+        if revisions:
+            real = php_site(site, "echo igua_schema_revision(db());")
+            if not real.isdigit() or int(real) != revisions[0]:
+                die('Revisão real do banco diverge do código instalado; nenhuma alteração realizada.')
         update_files(site, files, installed, incoming, mode, revisions)
 
 
@@ -587,6 +601,8 @@ def main():
         match = re.search(rb'const\s+IGUA_SCHEMA_REVISION\s*=\s*(\d+)\s*;', incoming_schema)
         if not match or int(match.group(1)) != revisions[1]:
             die('Schema do código diverge do manifesto')
+    if revisions:
+        say("Banco: revisão {} → {}".format(*revisions))
     php_lint(files)
     deploy_with_lock(site, files, installed, incoming, mode, revisions)
     if mode == 'patch':
@@ -636,6 +652,6 @@ ssh "${SSH_OPTS[@]}" "$REMOTE" \
   "sudo -n /usr/bin/python3 '$REMOTE_SCRIPT' '$MODE' '$SITE' '$REMOTE_ZIP' '$SHA' '$SELECTED_VERSION'" || status=$?
 msg "Log Termux: $LOG"
 if (( status != 0 )); then
-  fail 'Operação remota falhou. Não repita antes de conferir o erro.'
+  fail 'Atualização não concluída. Consulte os detalhes no log.'
 fi
 msg "Concluído ($MODE). O AL Sistemas e o site de testes não foram alvo desta operação."

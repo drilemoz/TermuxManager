@@ -30,13 +30,13 @@ menu_aws_meusite() {
             "[0] Voltar  •  [1–4] Selecionar" \
             "1|🔎|Verificar servidor|Somente diagnóstico; não modifica o site" \
             "2|🩹|Aplicar patch do atualizador|Substitui app/updater.php após confirmar" \
-            "3|🔄|Atualizar IguatamaOnline|ZIP local ou Release GitHub; migração 37→38 automática" \
+            "3|🔄|Atualizar IguatamaOnline|ZIP local ou Release GitHub; backup e migração automática" \
             "4|🔑|Configurar conexão SSH|Compartilhada com AL Sistemas na AWS"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) meusite_executar_atalho --check; resultado=$?; [ "$resultado" -eq 0 ] || warn "Verificação falhou (código $resultado)."; pause ;;
             2) meusite_executar_atalho --patch; resultado=$?; [ "$resultado" -eq 0 ] || warn "Patch não aplicado (código $resultado)."; pause ;;
-            3) meusite_executar_atalho --update; resultado=$?; [ "$resultado" -eq 0 ] || warn "Atualização não concluída (código $resultado)."; pause ;;
+            3) meusite_executar_atalho --update; resultado=$?; [ "$resultado" -eq 0 ] || warn "Atualização não concluída. Consulte o log indicado acima."; pause ;;
             4) aws_configurar ;;
             0) return 0 ;;
             *) warn "Opção inválida."; sleep 1 ;;

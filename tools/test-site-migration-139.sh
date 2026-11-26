@@ -10,7 +10,10 @@ with tempfile.TemporaryDirectory() as d:
  p=Path(d);(p/'app').mkdir();(p/'app/schema_migrations.php').write_text('const IGUA_SCHEMA_REVISION = 37;')
  assert ns['check_schema'](p,{'schema_revision':38})==(37,38)
  assert ns['check_schema'](p,{'schema_revision':37})==(37,37)
- for v in (36,39):
+ assert ns['check_schema'](p,{'schema_revision':39})==(37,39)
+ p.joinpath('app/schema_migrations.php').write_text('const IGUA_SCHEMA_REVISION = 38;')
+ assert ns['check_schema'](p,{'schema_revision':39})==(38,39)
+ for v in (36,37,40):
   try: ns['check_schema'](p,{'schema_revision':v})
   except RuntimeError: pass
   else: raise AssertionError(v)
