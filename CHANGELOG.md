@@ -1,3 +1,7 @@
+## v1.0.139 (2026-11-25)
+
+- Atualização do site com uma confirmação e migração 37→38 automática, backup lógico local e preservação da manutenção em falha.
+
 ## v1.0.138 (2026-11-25)
 
 - AWS: sugere a chave atual sem extensão e mantém compatibilidade com .pem; lista chaves privadas locais na configuração.

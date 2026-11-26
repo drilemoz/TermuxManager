@@ -34,7 +34,7 @@ Arquivos aceitos em Downloads:
 
 Variáveis opcionais: MEUSITE_HOST, MEUSITE_USER, MEUSITE_KEY, MEUSITE_SITE,
 MEUSITE_DOWNLOADS, MEUSITE_PORT. Exige sudo -n na EC2. Não altera serviços AL Sistemas.
-Nunca rode --update sem backup externo prévio de MariaDB, storage e uploads.
+Atualização cria backup do código e, na migração 37→38, backup lógico do banco. Mantenha cópias externas.
 HELP
 }
 if (( $# > 1 )); then usage; exit 2; fi
@@ -364,9 +364,10 @@ def check_schema(site, meta):
     if not m:
         die('Não foi possível identificar revisão de schema instalada')
     current = int(m.group(1))
-    if meta['schema_revision'] != current:
-        die('Schema {} -> {}: atualização manual recusada; use processo oficial com migrações/backup.'.format(current, meta['schema_revision']))
-    say('Revisão de schema preservada: {}'.format(current))
+    target = meta['schema_revision']
+    if target != current and (current, target) != (37, 38):
+        die('Migração ainda não suportada: {} -> {}'.format(current, target))
+    return current, target
 
 
 def php_lint(files):
@@ -408,7 +409,29 @@ def atomic_write(target, data, previous_stat=None):
             os.unlink(temp)
 
 
-def update_files(site, files, installed, incoming, mode):
+def php_site(site, code):
+    php = shutil.which('php8.3') or shutil.which('php')
+    if not php:
+        die('PHP CLI indisponível')
+    prelude = "require 'app/bootstrap.php'; require 'app/backup.php'; require 'app/ads.php'; require 'app/news_editor.php'; require_once 'app/schema.php'; require_once 'app/article_workflow.php'; require_once 'app/analytics.php'; require_once 'app/schema_migrations.php'; "
+    # Executar com a conta do projeto, não como root.
+    import pwd
+    account = pwd.getpwuid(site.stat().st_uid).pw_name
+    result = subprocess.run(['runuser', '-u', account, '--', php, '-r', prelude + code], cwd=site, capture_output=True, text=True, timeout=300)
+    if result.returncode:
+        die('PHP: ' + (result.stderr or result.stdout).strip()[:1000])
+    return result.stdout.strip()
+
+
+def backup_data(site, backup, revision):
+    name = php_site(site, "if (igua_schema_revision(db()) !== " + str(revision) + ") throw new RuntimeException('Schema real divergente'); $n=make_backup(db(),'safety'); parse_backup(file_get_contents(backup_path($n)),$n); echo $n;")
+    if not re.fullmatch(r'safety-\d{8}-\d{6}-[a-f0-9]{6}\.json(?:\.gz)?', name):
+        die('Nome de backup inesperado')
+    shutil.copy2(under_tree_without_links(site, 'storage/backups/' + name), backup / name)
+    say('Backup lógico do banco salvo: ' + str(backup / name))
+
+
+def update_files(site, files, installed, incoming, mode, revisions=None):
     root_backup = Path('/var/backups/iguatamaonline-manual')
     if root_backup.is_symlink():
         die('Diretório de backups é link simbólico')
@@ -440,14 +463,33 @@ def update_files(site, files, installed, incoming, mode):
                  if existed[k] else {'existed': False}) for k in existed}
     (backup / 'metadata.json').write_text(json.dumps({'mode': mode, 'old_version': installed,
         'new_version': incoming, 'files': backup_meta}, indent=2), encoding='utf-8')
+    migration_started = False
+    marker = None
+    if revisions and revisions[0] != revisions[1]:
+        marker = under_tree_without_links(site, 'storage/.update-maintenance')
+        with marker.open('x') as stream:
+            stream.write('Atualização assistida em andamento')
+        try:
+            backup_data(site, backup, revisions[0])
+        except Exception:
+            marker.unlink()
+            raise
     try:
         for rel, data in files:
             target = under_tree_without_links(site, rel)
             old_stat = target.stat() if existed[rel] else None
             atomic_write(target, data, old_stat)
             replaced.append(rel)
+        if marker:
+            migration_started = True
+            php_site(site, "igua_migrate_schema(db()); if (igua_schema_revision(db()) !== " + str(revisions[1]) + ") throw new RuntimeException('Migração incompleta');")
+            marker.unlink()
+            say('Migração do banco concluída.')
         say('SUCESSO: {} arquivos substituídos. Backup: {}'.format(len(replaced), backup))
     except Exception:
+        if migration_started:
+            say('Migração interrompida. Manutenção preservada; backup em ' + str(backup))
+            raise
         say('Erro após {} substituições. Tentando rollback do código...'.format(len(replaced)))
         for rel in reversed(replaced):
             try:
@@ -459,14 +501,16 @@ def update_files(site, files, installed, incoming, mode):
                     target.unlink(missing_ok=True)
             except Exception as exc:
                 say('ATENÇÃO: rollback falhou para {}: {}'.format(rel, exc))
+        if marker:
+            say('Manutenção preservada para verificar a recuperação.')
         say('Se necessário, restaure manualmente pelo backup: ' + str(backup))
         raise
 
 
-def deploy_with_lock(site, files, installed, incoming, mode):
+def deploy_with_lock(site, files, installed, incoming, mode, revisions=None):
     # Respeitar também o flock usado pelo atualizador PHP nativo, se existir.
     with ExitStack() as stack:
-        for rel in ('storage/updater/vps/private/.code.lock', 'storage/updater/.lock'):
+        for rel in ('storage/updater/vps/.dispatch.lock', 'storage/updater/vps/private/.code.lock', 'storage/updater/.lock'):
             lockfile = under_tree_without_links(site, rel)
             if not lockfile.exists():
                 continue
@@ -485,7 +529,7 @@ def deploy_with_lock(site, files, installed, incoming, mode):
         if subprocess.run(['systemctl', 'is-active', '--quiet', 'iguatama-deploy.service'],
                           check=False).returncode == 0:
             die('Worker ativo durante a obtenção do lock')
-        update_files(site, files, installed, incoming, mode)
+        update_files(site, files, installed, incoming, mode, revisions)
 
 
 def main():
@@ -516,14 +560,18 @@ def main():
         say('Nenhuma alteração: instalada {} >= pacote {}.'.format(installed, incoming))
         return
     files, meta = inspect_zip(Path(zip_arg), sha, mode, incoming)
-    if mode == 'update':
-        check_schema(site, meta)
+    revisions = check_schema(site, meta) if mode == 'update' else None
+    if revisions:
+        incoming_schema = dict(files).get('app/schema_migrations.php', b'')
+        match = re.search(rb'const\s+IGUA_SCHEMA_REVISION\s*=\s*(\d+)\s*;', incoming_schema)
+        if not match or int(match.group(1)) != revisions[1]:
+            die('Schema do código diverge do manifesto')
     php_lint(files)
-    deploy_with_lock(site, files, installed, incoming, mode)
+    deploy_with_lock(site, files, installed, incoming, mode, revisions)
     if mode == 'patch':
         say('Patch instalado. Abra Atualizações > Vistoria do servidor no painel.')
     else:
-        say('Código publicado. Confirme o painel e a versão. Banco, storage e uploads não foram modificados.')
+        say('Código publicado. Confirme o painel e a versão. Storage e uploads preservados.')
 
 
 if __name__ == '__main__':
@@ -551,11 +599,9 @@ if [[ "$MODE" != check ]]; then
   scp "${SCP_OPTS[@]}" "$SELECTED_ZIP" "$REMOTE:$REMOTE_ZIP" || \
     fail 'Não foi possível enviar ZIP por SCP.'
   if [[ "$MODE" == update ]]; then
-    msg 'IMPORTANTE: este shell cria backup do CÓDIGO, mas NÃO salva MariaDB, storage nem uploads.'
-    msg 'Antes de prosseguir, tenha cópia externa comprovada desses dados e/ou snapshot EBS.'
-    printf 'Os backups já foram verificados? (s/N): '
+    printf 'Atualizar o site agora? (s/N): '
     read -r ack
-    [[ "$ack" =~ ^[sS]$ ]] || fail 'Sem confirmação de backup externo; cancelado.'
+    [[ "$ack" =~ ^[sS]$ ]] || fail 'Cancelado pelo usuário.'
   else
     msg 'Patch de um arquivo com cópia automática do updater.php anterior.'
     printf 'Digite APLICAR para continuar: '

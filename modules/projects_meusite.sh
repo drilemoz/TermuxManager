@@ -30,7 +30,7 @@ menu_aws_meusite() {
             "[0] Voltar  •  [1–4] Selecionar" \
             "1|🔎|Verificar servidor|Somente diagnóstico; não modifica o site" \
             "2|🩹|Aplicar patch do atualizador|Substitui app/updater.php após confirmar" \
-            "3|🔄|Atualizar IguatamaOnline|ZIP local ou Release GitHub; exige backup" \
+            "3|🔄|Atualizar IguatamaOnline|ZIP local ou Release GitHub; migração 37→38 automática" \
             "4|🔑|Configurar conexão SSH|Compartilhada com AL Sistemas na AWS"
         ler_opcao
         case "$RESPOSTA_MENU" in

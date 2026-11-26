@@ -4,9 +4,13 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.138  
+**Versão atual:** 1.0.139  
 
-### Acesso AWS (1.0.138)
+### Atualização do site (1.0.139)
+
+Uma confirmação; migração 37→38 com backup lógico local e manutenção automática. Em falha de migração, mantém manutenção para recuperação. Não substitui backup externo.
+
+### Acesso AWS (1.0.139)
 
 Em Configurar acesso SSH, aceite a chave sugerida ou digite L para escolher uma chave privada local. A configuração é compartilhada entre AL Sistemas e IguatamaOnline. Chaves existentes não são sobrescritas; chaves com senha exigem ssh-agent na sessão. Confira a identidade do servidor antes da primeira conexão. Migrações de banco continuam assistidas.
 
@@ -604,10 +608,10 @@ Em **Meus projetos → [A] AL Sistemas na AWS**, o assistente oferece **Configur
 O padrão oficial é:
 
 ```text
-Versão: 1.0.138
-Tag: v1.0.138
-Release: Manager 1.0.138
-Pacote único: TermuxManager-v1.0.138.zip
+Versão: 1.0.139
+Tag: v1.0.139
+Release: Manager 1.0.139
+Pacote único: TermuxManager-v1.0.139.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
