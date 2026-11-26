@@ -34,7 +34,7 @@ Arquivos aceitos em Downloads:
 
 Variáveis opcionais: MEUSITE_HOST, MEUSITE_USER, MEUSITE_KEY, MEUSITE_SITE,
 MEUSITE_DOWNLOADS, MEUSITE_PORT. Exige sudo -n na EC2. Não altera serviços AL Sistemas.
-Atualização cria backup do código e, nas migrações compatíveis 37–39, backup lógico do banco. Mantenha cópias externas.
+Atualização cria backup do código e, nas mudanças de schema fornecidas pelo site, backup lógico do banco. Mantenha cópias externas.
 HELP
 }
 if (( $# > 1 )); then usage; exit 2; fi
@@ -57,7 +57,9 @@ if [[ "$MODE" == update && -t 1 && ${MEUSITE_VERBOSE:-0} != 1 ]]; then
     /Inspecionando / { show("  [2/6] Verificando atualização..."); next }
     /Produção:.*versão instalada:/ { sub(/.*versão instalada: /, ""); show("  Versão atual: " $0); next }
     /Banco: revisão/ { sub(/.*Banco: revisão /, ""); show("  Banco de dados: " $0); next }
-    /RuntimeError:.*Migração ainda não suportada/ { show("  Não foi possível atualizar: versão do banco ainda não suportada."); next }
+    /RuntimeError:.*Downgrade de schema/ { show("  Este pacote usa um banco mais antigo que o instalado. Escolha uma versão mais recente."); next }
+    /RuntimeError:.*Schema do código diverge|RuntimeError:.*Migração ausente|RuntimeError:.*schema_revision inválido/ { show("  O pacote do site não contém uma migração compatível. Nenhum arquivo foi alterado."); next }
+    /Migração interrompida/ { show("  A migração falhou. O backup foi preservado e o site está em manutenção para recuperação."); next }
     /RuntimeError:.*Revisão real do banco/ { show("  Banco e código estão em versões diferentes. Nenhum arquivo foi alterado."); next }
     /RuntimeError:.*Lock de atualização em uso|RuntimeError:.*Serviço ocupado/ { show("  Servidor ocupado com outra atualização. Aguarde e tente novamente."); next }
     /RuntimeError:.*Atualização ativa ou interrompida|RuntimeError:.*Atualização concorrente/ { show("  Existe uma atualização pendente. Confira o histórico antes de continuar."); next }
@@ -358,7 +360,7 @@ def inspect_zip(path, sha_expected, mode, expected_version):
             die('Formato de release incompatível')
         if meta.get('version') != expected_version or z.read('VERSION').decode('utf-8').strip() != expected_version:
             die('Versão do ZIP/manifesto diverge do nome')
-        if not isinstance(meta.get('schema_revision'), int) or isinstance(meta['schema_revision'], bool):
+        if type(meta.get('schema_revision')) is not int or meta['schema_revision'] < 1:
             die('schema_revision inválido')
         if not isinstance(meta.get('files'), list) or not meta['files']:
             die('Manifesto sem lista de arquivos')
@@ -397,9 +399,21 @@ def check_schema(site, meta):
         die('Não foi possível identificar revisão de schema instalada')
     current = int(m.group(1))
     target = meta['schema_revision']
-    if target != current and not (37 <= current < target <= 39):
-        die('Migração ainda não suportada: {} -> {}'.format(current, target))
+    if current < 1 or type(target) is not int or target < 1:
+        die('schema_revision inválido')
+    if target < current:
+        die('Downgrade de schema não permitido: {} -> {}'.format(current, target))
+    # O site fornece a migração cumulativa; não limitar a revisão a uma lista fixa.
     return current, target
+
+
+def check_incoming_schema(files, revisions):
+    incoming_schema = dict(files).get('app/schema_migrations.php', b'')
+    match = re.search(rb'const\s+IGUA_SCHEMA_REVISION\s*=\s*(\d+)\s*;', incoming_schema)
+    if not match or int(match.group(1)) != revisions[1]:
+        die('Schema do código diverge do manifesto')
+    if revisions[0] < revisions[1] and not re.search(rb'function\s+igua_migrate_schema\s*\(', incoming_schema):
+        die('Migração ausente no pacote do site')
 
 
 def php_lint(files):
@@ -508,6 +522,8 @@ def update_files(site, files, installed, incoming, mode, revisions=None):
             raise
     try:
         for rel, data in files:
+            if marker and rel == 'VERSION':
+                continue  # Publicar versão apenas após validar a migração.
             target = under_tree_without_links(site, rel)
             old_stat = target.stat() if existed[rel] else None
             atomic_write(target, data, old_stat)
@@ -515,6 +531,9 @@ def update_files(site, files, installed, incoming, mode, revisions=None):
         if marker:
             migration_started = True
             php_site(site, "igua_migrate_schema(db()); if (igua_schema_revision(db()) !== " + str(revisions[1]) + ") throw new RuntimeException('Migração incompleta');")
+            version_data = dict(files)['VERSION']
+            atomic_write(under_tree_without_links(site, 'VERSION'), version_data, original_stats.get('VERSION'))
+            replaced.append('VERSION')
             marker.unlink()
             say('Migração do banco concluída.')
         say('SUCESSO: {} arquivos substituídos. Backup: {}'.format(len(replaced), backup))
@@ -597,10 +616,7 @@ def main():
     files, meta = inspect_zip(Path(zip_arg), sha, mode, incoming)
     revisions = check_schema(site, meta) if mode == 'update' else None
     if revisions:
-        incoming_schema = dict(files).get('app/schema_migrations.php', b'')
-        match = re.search(rb'const\s+IGUA_SCHEMA_REVISION\s*=\s*(\d+)\s*;', incoming_schema)
-        if not match or int(match.group(1)) != revisions[1]:
-            die('Schema do código diverge do manifesto')
+        check_incoming_schema(files, revisions)
     if revisions:
         say("Banco: revisão {} → {}".format(*revisions))
     php_lint(files)

@@ -1,3 +1,7 @@
+## v1.0.142 (2026-11-26)
+
+- Atualização do site sem teto fixo de schema: usa a migração cumulativa fornecida pelo pacote, valida a revisão real e publica VERSION após sucesso. Mensagens resumidas para pacote incompatível, downgrade e falha de migração; backup preservado.
+
 ## v1.0.141 (2026-11-26)
 
 - Atualização do site: migrações 38→39 e 37→39, conferência da revisão real, espera por serviço ocupado e mensagens resumidas.

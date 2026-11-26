@@ -4,13 +4,13 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.141  
+**Versão atual:** 1.0.142  
 
-### Atualização do site (1.0.141)
+### Atualização do site (1.0.142)
 
 A atualização interativa mostra etapas resumidas e mantém o log integral. Use `MEUSITE_VERBOSE=1` para saída técnica completa.
 
-Uma confirmação; migração 37→38, 38→39 ou 37→39 com backup lógico local e manutenção automática. Em falha de migração, mantém manutenção para recuperação. Não substitui backup externo.
+Uma confirmação; qualquer revisão crescente de schema é aceita sem limite fixo, desde que o ZIP contenha a rotina cumulativa `igua_migrate_schema()` compatível com a instalação. O Manager compara manifesto, código e banco real, faz backup lógico e executa a rotina do site; publica VERSION somente após validar a revisão final. Downgrade, pacote incompatível e falha real continuam sendo tratados. Em falha de migração, mantém manutenção para recuperação. Não substitui backup externo.
 
 ### Acesso AWS (1.0.141)
 
@@ -610,10 +610,10 @@ Em **Meus projetos → [A] AL Sistemas na AWS**, o assistente oferece **Configur
 O padrão oficial é:
 
 ```text
-Versão: 1.0.141
-Tag: v1.0.141
-Release: Manager 1.0.141
-Pacote único: TermuxManager-v1.0.141.zip
+Versão: 1.0.142
+Tag: v1.0.142
+Release: Manager 1.0.142
+Pacote único: TermuxManager-v1.0.142.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
