@@ -1,3 +1,7 @@
+## v1.0.140 (2026-11-25)
+
+- Atualizador do IguatamaOnline com etapas resumidas no terminal interativo e log técnico integral. MEUSITE_VERBOSE=1 restaura a saída detalhada.
+
 ## v1.0.139 (2026-11-25)
 
 - Atualização do site com uma confirmação e migração 37→38 automática, backup lógico local e preservação da manutenção em falha.

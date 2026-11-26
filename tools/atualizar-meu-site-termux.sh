@@ -48,7 +48,28 @@ esac
 
 mkdir -p "$WORK"
 LOG="$WORK/execucao-$(date +%Y%m%d-%H%M%S).log"
-exec > >(tee -a "$LOG") 2>&1
+# Keep complete output in the log; simplify only the interactive update view.
+if [[ "$MODE" == update && -t 1 && ${MEUSITE_VERBOSE:-0} != 1 ]]; then
+  exec > >(tee -a "$LOG" | awk '
+    function show(s) { print s; fflush() }
+    /Selecionado:/ { sub(/.*Selecionado: /, ""); sub(/ \| SHA-256:.*/, ""); show("  Pacote: " $0); next }
+    /Conectando por SSH/ { show("  [1/6] Conectando ao servidor..."); next }
+    /Inspecionando / { show("  [2/6] Verificando atualização..."); next }
+    /Produção:.*versão instalada:/ { sub(/.*versão instalada: /, ""); show("  Versão atual: " $0); next }
+    /arquivos PHP passaram/ { show("  OK - Código verificado"); next }
+    /Criando backup ANTES/ { show("  [3/6] Criando backup..."); next }
+    /Backup lógico do banco salvo/ { show("  [4/6] Backup do banco pronto; migrando..."); next }
+    /Migração do banco concluída/ { show("  OK - Banco atualizado"); next }
+    /SUCESSO:.*arquivos substituídos/ { sub(/.*SUCESSO: /, ""); sub(/\. Backup:.*/, ""); show("  [5/6] " $0); next }
+    /Código publicado/ { show("  [6/6] Código publicado; storage e uploads preservados."); next }
+    /Concluído \(update\)/ { show("\n  ATUALIZAÇÃO CONCLUÍDA\n  Confira o site: https://iguatama.online"); next }
+    /Log Termux:/ { sub(/.*Log Termux: /, ""); show("  Detalhes: " $0); next }
+    /Pacote local encontrado|Consultando a última Release|SHA-256 oficial.*confirmado/ { next }
+    { show($0) }
+  ') 2>&1
+else
+  exec > >(tee -a "$LOG") 2>&1
+fi
 msg() { printf '\n[Meu-Site Termux] %s\n' "$*"; }
 fail() { msg "ERRO: $*"; msg "Log: $LOG"; exit 1; }
 trap 'rc=$?; if ((rc != 0)); then printf "\n[Meu-Site Termux] Falha (%d). Log: %s\n" "$rc" "$LOG"; fi' EXIT
@@ -599,7 +620,7 @@ if [[ "$MODE" != check ]]; then
   scp "${SCP_OPTS[@]}" "$SELECTED_ZIP" "$REMOTE:$REMOTE_ZIP" || \
     fail 'Não foi possível enviar ZIP por SCP.'
   if [[ "$MODE" == update ]]; then
-    printf 'Atualizar o site agora? (s/N): '
+    printf 'Atualizar o site para %s agora? (s/N): \n' "$SELECTED_VERSION"
     read -r ack
     [[ "$ack" =~ ^[sS]$ ]] || fail 'Cancelado pelo usuário.'
   else
